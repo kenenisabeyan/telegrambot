@@ -6,17 +6,41 @@ def get_main_keyboard():
         keyboard=[
             [KeyboardButton(text="❓ FAQ"), KeyboardButton(text="⏰ Reminder")],
             [KeyboardButton(text="🤖 AI Chat"), KeyboardButton(text="🌤 Weather")],
-            [KeyboardButton(text="ℹ️ Help")]
+            [KeyboardButton(text="📊 Stats"), KeyboardButton(text="💬 Feedback")],
+            [KeyboardButton(text="ℹ️ Help"), KeyboardButton(text="❌ Cancel")]
         ],
-        resize_keyboard=True
+        resize_keyboard=True,
+        input_field_placeholder="Choose an option..."
     )
 
-def get_faq_keyboard():
-    """FAQ inline keyboard"""
+def get_admin_keyboard():
+    """Admin panel keyboard"""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Question 1", callback_data="faq_1")],
-            [InlineKeyboardButton(text="Question 2", callback_data="faq_2")],
-            [InlineKeyboardButton(text="Contact Support", callback_data="faq_support")]
+            [InlineKeyboardButton(text="📊 Stats", callback_data="admin_stats")],
+            [InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast")],
+            [InlineKeyboardButton(text="👥 Users", callback_data="admin_users")],
+            [InlineKeyboardButton(text="🔙 Back", callback_data="back_to_menu")]
+        ]
+    )
+
+def get_weather_keyboard(city: str = None):
+    """Weather inline keyboard"""
+    buttons = []
+    if city:
+        buttons.append([InlineKeyboardButton(text="📅 Forecast", callback_data=f"forecast_{city}")])
+        buttons.append([InlineKeyboardButton(text="🔄 Refresh", callback_data=f"refresh_{city}")])
+    buttons.append([InlineKeyboardButton(text="📍 My Location", callback_data="weather_location")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_reminder_keyboard(reminder_id: str):
+    """Reminder action keyboard"""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Done", callback_data=f"remind_done_{reminder_id}"),
+                InlineKeyboardButton(text="⏰ Snooze", callback_data=f"remind_snooze_{reminder_id}")
+            ],
+            [InlineKeyboardButton(text="❌ Delete", callback_data=f"remind_delete_{reminder_id}")]
         ]
     )
