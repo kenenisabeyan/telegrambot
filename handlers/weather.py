@@ -145,8 +145,10 @@ def get_wind_direction(degrees: int) -> str:
     return directions[index]
 
 @router.message(Command("weather"))
-async def cmd_weather(message: Message, state: FSMContext):
+async def cmd_weather(message: Message, state: FSMContext, db=None):
     """Handle /weather command"""
+    if db:
+        await db.log_command(message.from_user.id, "weather")
     args = message.text.split(maxsplit=1)
     
     if len(args) < 2:
@@ -283,8 +285,10 @@ async def request_location(callback: CallbackQuery):
     await callback.answer()
 
 @router.message(F.location)
-async def handle_location(message: Message):
+async def handle_location(message: Message, db=None):
     """Handle location message"""
+    if db:
+        await db.log_command(message.from_user.id, "weather")
     lat = message.location.latitude
     lon = message.location.longitude
     
@@ -298,8 +302,10 @@ async def handle_location(message: Message):
     )
 
 @router.message(WeatherStates.waiting_for_city)
-async def handle_city_input(message: Message, state: FSMContext):
+async def handle_city_input(message: Message, state: FSMContext, db=None):
     """Handle city name input"""
+    if db:
+        await db.log_command(message.from_user.id, "weather")
     await get_and_send_weather(message, message.text)
     await state.clear()
 

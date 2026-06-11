@@ -1,42 +1,35 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
-import json
+from utils.keyboards import get_main_keyboard
 
 router = Router()
 
-# Main menu keyboard with web app support
-def get_main_keyboard(user_id: int = None):
-    """Return the main menu keyboard"""
-    buttons = [
-        [KeyboardButton(text="❓ FAQ"), KeyboardButton(text="⏰ Reminder")],
-        [KeyboardButton(text="🤖 AI Chat"), KeyboardButton(text="🌤 Weather")],
-        [KeyboardButton(text="📊 Stats"), KeyboardButton(text="💬 Feedback")],
-        [KeyboardButton(text="ℹ️ Help"), KeyboardButton(text="❌ Cancel")]
-    ]
-    
-    # Add web app button for premium users
-    # buttons.append([KeyboardButton(text="🌐 Open Web App", web_app=WebAppInfo(url="https://your-webapp.com"))])
-    
-    return ReplyKeyboardMarkup(
-        keyboard=buttons,
-        resize_keyboard=True,
-        input_field_placeholder="Choose an option or type a command..."
-    )
+class FeedbackStates(StatesGroup):
+    waiting_for_feedback = State()
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext):
+async def cmd_start(message: Message, state: FSMContext, db=None):
     """Handle /start command with deep linking"""
     await state.clear()
     
     # Handle deep linking (e.g., /start ref_123)
     args = message.text.split()
-    referrer = None
+    _referrer = None
     if len(args) > 1:
-        referrer = args[1]
-        # Save referral to database (implement later)
+        _referrer = args[1]
+    
+    if db:
+        await db.add_user(
+            user_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            last_name=message.from_user.last_name
+        )
+        await db.log_command(message.from_user.id, "start")
     
     welcome_text = (
         f"<b>👋 Welcome, {message.from_user.full_name}!</b>\n\n"
@@ -60,14 +53,14 @@ async def cmd_start(message: Message, state: FSMContext):
         welcome_text,
         reply_markup=get_main_keyboard(message.from_user.id)
     )
-    
-    # Log user start (implement database logging later)
-    print(f"User {message.from_user.id} started bot at {datetime.now()}")
 
 @router.message(Command("help"))
 @router.message(F.text == "ℹ️ Help")
-async def cmd_help(message: Message):
+async def cmd_help(message: Message, db=None):
     """Handle /help command"""
+    if db:
+        await db.log_command(message.from_user.id, "help")
+        
     help_text = (
         "<b>📚 Complete Command Reference</b>\n\n"
         
@@ -110,8 +103,10 @@ async def cmd_help(message: Message):
 
 @router.message(Command("menu"))
 @router.message(F.text == "📋 Menu")
-async def cmd_menu(message: Message):
+async def cmd_menu(message: Message, db=None):
     """Show main menu"""
+    if db:
+        await db.log_command(message.from_user.id, "menu")
     await message.answer(
         "<b>📋 Main Menu</b>\n\nChoose an option below:",
         reply_markup=get_main_keyboard(message.from_user.id)
@@ -119,8 +114,10 @@ async def cmd_menu(message: Message):
 
 @router.message(F.text == "❌ Cancel")
 @router.message(Command("cancel"))
-async def cmd_cancel(message: Message, state: FSMContext):
+async def cmd_cancel(message: Message, state: FSMContext, db=None):
     """Handle cancel button/command"""
+    if db:
+        await db.log_command(message.from_user.id, "cancel")
     current_state = await state.get_state()
     if current_state is not None:
         await state.clear()
@@ -136,21 +133,34 @@ async def cmd_cancel(message: Message, state: FSMContext):
 
 @router.message(Command("stats"))
 @router.message(F.text == "📊 Stats")
-async def cmd_stats(message: Message):
+async def cmd_stats(message: Message, db=None):
     """Show user statistics"""
-    # This would pull from database in production
+    if db:
+        await db.log_command(message.from_user.id, "stats")
+        stats = await db.get_user_stats(message.from_user.id)
+        joined_str = stats["joined_at"].strftime('%Y-%m-%d')
+        commands_count = stats["commands_count"]
+        reminders_count = stats["reminders_count"]
+        ai_count = stats["ai_count"]
+        weather_count = stats["weather_count"]
+    else:
+        joined_str = datetime.now().strftime('%Y-%m-%d')
+        commands_count = 0
+        reminders_count = 0
+        ai_count = 0
+        weather_count = 0
+
     stats_text = (
         "<b>📊 Your Statistics</b>\n\n"
         f"<b>👤 User:</b> {message.from_user.full_name}\n"
         f"<b>🆔 ID:</b> <code>{message.from_user.id}</code>\n"
-        f"<b>📅 Joined:</b> {datetime.now().strftime('%Y-%m-%d')}\n\n"
+        f"<b>📅 Joined:</b> {joined_str}\n\n"
         
         "<b>📈 Usage Stats:</b>\n"
-        "• Messages sent: 0\n"
-        "• Commands used: 0\n"
-        "• Reminders set: 0\n"
-        "• AI queries: 0\n"
-        "• Weather checks: 0\n\n"
+        f"• Commands used: {commands_count}\n"
+        f"• Reminders set: {reminders_count}\n"
+        f"• AI queries: {ai_count}\n"
+        f"• Weather checks: {weather_count}\n\n"
         
         "<b>🏆 Achievements:</b>\n"
         "• 🌟 Bot Explorer\n"
@@ -163,13 +173,11 @@ async def cmd_stats(message: Message):
 
 @router.message(Command("feedback"))
 @router.message(F.text == "💬 Feedback")
-async def cmd_feedback(message: Message, state: FSMContext):
+async def cmd_feedback(message: Message, state: FSMContext, db=None):
     """Collect feedback from users"""
-    from aiogram.fsm.state import State, StatesGroup
-    
-    class FeedbackStates(StatesGroup):
-        waiting_for_feedback = State()
-    
+    if db:
+        await db.log_command(message.from_user.id, "feedback")
+        
     await state.set_state(FeedbackStates.waiting_for_feedback)
     await message.answer(
         "<b>💬 Send Feedback</b>\n\n"
@@ -179,19 +187,17 @@ async def cmd_feedback(message: Message, state: FSMContext):
         parse_mode="HTML"
     )
 
-@router.message(F.text & ~F.text.startswith("/"))
-async def handle_feedback(message: Message, state: FSMContext):
+@router.message(FeedbackStates.waiting_for_feedback)
+async def handle_feedback(message: Message, state: FSMContext, db=None):
     """Handle feedback input"""
     from handlers.callback import save_feedback
     
-    current_state = await state.get_state()
-    if current_state and "FeedbackStates" in str(current_state):
-        await save_feedback(message.from_user.id, message.text)
-        await state.clear()
-        await message.answer(
-            "<b>✅ Thank you for your feedback!</b>\n\n"
-            "We appreciate your input and will use it to improve our bot.\n\n"
-            "Is there anything else I can help you with?",
-            reply_markup=get_main_keyboard(message.from_user.id),
-            parse_mode="HTML"
-        )
+    await save_feedback(message.from_user.id, message.text, db=db)
+    await state.clear()
+    await message.answer(
+        "<b>✅ Thank you for your feedback!</b>\n\n"
+        "We appreciate your input and will use it to improve our bot.\n\n"
+        "Is there anything else I can help you with?",
+        reply_markup=get_main_keyboard(message.from_user.id),
+        parse_mode="HTML"
+    )

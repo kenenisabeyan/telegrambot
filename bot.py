@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import all handlers
-from handlers import start, faq, reminders, ai_chat, weather, admin, callback
+from handlers import start, faq, reminders, ai_chat, weather, admin, callback  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -55,10 +55,32 @@ async def set_bot_commands(bot: Bot):
     await bot.set_my_commands(commands)
     logger.info("Bot commands set successfully")
 
-async def on_startup(bot: Bot):
+async def on_startup(bot: Bot, db=None):
     """Actions to perform when bot starts"""
     logger.info("🚀 Bot is starting up...")
     await set_bot_commands(bot)
+    
+    if db:
+        try:
+            logger.info("Connecting to PostgreSQL database...")
+            await db.connect()
+            logger.info("PostgreSQL database connected and tables verified.")
+            
+            # Reschedule active reminders
+            active_reminders = await db.get_active_reminders()
+            logger.info(f"Loaded {len(active_reminders)} active reminders to reschedule.")
+            from handlers.reminders import send_reminder
+            for reminder in active_reminders:
+                asyncio.create_task(send_reminder(
+                    bot=bot,
+                    chat_id=reminder['user_id'],
+                    reminder_id=reminder['id'],
+                    message_text=reminder['message'],
+                    remind_time=reminder['remind_time'],
+                    db=db
+                ))
+        except Exception as e:
+            logger.error(f"Failed to connect to database or reschedule reminders: {e}")
     
     # Send notification to admins
     admin_ids = getenv("ADMIN_IDS", "").split(",")
@@ -69,15 +91,23 @@ async def on_startup(bot: Bot):
                     int(admin_id),
                     f"✅ Bot started successfully at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
-            except:
+            except Exception:
                 pass
     
     logger.info("✨ Bot is ready to serve!")
 
-async def on_shutdown(bot: Bot):
+async def on_shutdown(bot: Bot, db=None):
     """Actions to perform when bot shuts down"""
     logger.info("🛑 Bot is shutting down...")
     
+    if db and db.pool:
+        try:
+            logger.info("Closing database connection pool...")
+            await db.pool.close()
+            logger.info("Database connection pool closed successfully.")
+        except Exception as e:
+            logger.error(f"Error closing database pool: {e}")
+            
     # Notify admins
     admin_ids = getenv("ADMIN_IDS", "").split(",")
     for admin_id in admin_ids:
@@ -87,7 +117,7 @@ async def on_shutdown(bot: Bot):
                     int(admin_id),
                     f"⚠️ Bot is shutting down at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
                 )
-            except:
+            except Exception:
                 pass
     
     await bot.session.close()
@@ -95,6 +125,15 @@ async def on_shutdown(bot: Bot):
 
 async def main():
     """Main function to run the bot"""
+    db_url = getenv("DB_URL")
+    db = None
+    if db_url:
+        from database.models import Database
+        db = Database(db_url)
+        logger.info("Database URL found in environment variables.")
+    else:
+        logger.warning("DB_URL is not set in environment variables. Database functionality will use mock fallbacks.")
+
     bot = Bot(token=TOKEN, parse_mode=ParseMode.HTML)
     dp = Dispatcher(storage=storage)
     
@@ -114,7 +153,7 @@ async def main():
     # Start polling
     try:
         logger.info("🔄 Starting bot polling...")
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), db=db)
     except Exception as e:
         logger.error(f"❌ Error while polling: {e}")
     finally:

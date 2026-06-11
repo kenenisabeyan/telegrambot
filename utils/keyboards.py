@@ -1,26 +1,32 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
-def get_main_keyboard():
+def get_main_keyboard(user_id: int = None, is_premium: bool = False):
     """Main menu keyboard"""
+    buttons = [
+        [KeyboardButton(text="❓ FAQ"), KeyboardButton(text="⏰ Reminder")],
+        [KeyboardButton(text="🤖 AI Chat"), KeyboardButton(text="🌤 Weather")],
+        [KeyboardButton(text="📊 Stats"), KeyboardButton(text="💬 Feedback")],
+        [KeyboardButton(text="ℹ️ Help"), KeyboardButton(text="❌ Cancel")]
+    ]
+    if is_premium:
+        buttons.append([KeyboardButton(text="🌐 Open Web App", web_app=WebAppInfo(url="https://your-webapp.com"))])
+        
     return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="❓ FAQ"), KeyboardButton(text="⏰ Reminder")],
-            [KeyboardButton(text="🤖 AI Chat"), KeyboardButton(text="🌤 Weather")],
-            [KeyboardButton(text="📊 Stats"), KeyboardButton(text="💬 Feedback")],
-            [KeyboardButton(text="ℹ️ Help"), KeyboardButton(text="❌ Cancel")]
-        ],
+        keyboard=buttons,
         resize_keyboard=True,
-        input_field_placeholder="Choose an option..."
+        input_field_placeholder="Choose an option or type a command..."
     )
 
 def get_admin_keyboard():
     """Admin panel keyboard"""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📊 Stats", callback_data="admin_stats")],
+            [InlineKeyboardButton(text="📊 Bot Stats", callback_data="admin_stats")],
             [InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast")],
             [InlineKeyboardButton(text="👥 Users", callback_data="admin_users")],
-            [InlineKeyboardButton(text="🔙 Back", callback_data="back_to_menu")]
+            [InlineKeyboardButton(text="📝 Logs", callback_data="admin_logs")],
+            [InlineKeyboardButton(text="⚙️ Settings", callback_data="admin_settings")],
+            [InlineKeyboardButton(text="🔙 Main Menu", callback_data="back_to_menu")]
         ]
     )
 

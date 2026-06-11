@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 import asyncpg
 
 class Database:
@@ -101,3 +100,81 @@ class Database:
                 INSERT INTO usage_stats (user_id, command)
                 VALUES ($1, $2)
             """, user_id, command)
+
+    async def get_user_stats(self, user_id: int) -> dict:
+        """Get individual user statistics"""
+        async with self.pool.acquire() as conn:
+            joined_at = await conn.fetchval(
+                "SELECT joined_at FROM users WHERE user_id = $1", user_id
+            )
+            commands_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM usage_stats WHERE user_id = $1", user_id
+            )
+            reminders_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM reminders WHERE user_id = $1", user_id
+            )
+            ai_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM usage_stats WHERE user_id = $1 AND command = 'ai'", user_id
+            )
+            weather_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM usage_stats WHERE user_id = $1 AND command = 'weather'", user_id
+            )
+            
+            return {
+                "joined_at": joined_at or datetime.now(),
+                "commands_count": commands_count or 0,
+                "reminders_count": reminders_count or 0,
+                "ai_count": ai_count or 0,
+                "weather_count": weather_count or 0
+            }
+
+    async def get_admin_stats(self) -> dict:
+        """Get global stats for admin dashboard"""
+        async with self.pool.acquire() as conn:
+            users_count = await conn.fetchval("SELECT COUNT(*) FROM users")
+            active_today = await conn.fetchval(
+                "SELECT COUNT(*) FROM users WHERE last_active >= NOW() - INTERVAL '1 day'"
+            )
+            total_commands = await conn.fetchval("SELECT COUNT(*) FROM usage_stats")
+            reminders_set = await conn.fetchval("SELECT COUNT(*) FROM reminders")
+            ai_queries = await conn.fetchval(
+                "SELECT COUNT(*) FROM usage_stats WHERE command = 'ai'"
+            )
+            weather_checks = await conn.fetchval(
+                "SELECT COUNT(*) FROM usage_stats WHERE command = 'weather'"
+            )
+            
+            return {
+                "users": users_count or 0,
+                "active_today": active_today or 0,
+                "commands_used": total_commands or 0,
+                "reminders_set": reminders_set or 0,
+                "ai_queries": ai_queries or 0,
+                "weather_checks": weather_checks or 0
+            }
+
+    async def get_active_reminders(self) -> list:
+        """Get all active reminders to reschedule on startup"""
+        async with self.pool.acquire() as conn:
+            records = await conn.fetch("""
+                SELECT id, user_id, message, remind_time, status
+                FROM reminders
+                WHERE status = 'active' AND remind_time > NOW()
+            """)
+            return [dict(r) for r in records]
+
+    async def update_reminder_status(self, reminder_id: int, status: str, remind_time: datetime = None):
+        """Update status or snooze time of a reminder"""
+        async with self.pool.acquire() as conn:
+            if remind_time:
+                await conn.execute("""
+                    UPDATE reminders
+                    SET status = $2, remind_time = $3
+                    WHERE id = $1
+                """, reminder_id, status, remind_time)
+            else:
+                await conn.execute("""
+                    UPDATE reminders
+                    SET status = $2
+                    WHERE id = $1
+                """, reminder_id, status)

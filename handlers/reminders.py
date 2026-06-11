@@ -6,7 +6,6 @@ from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime, timedelta
 import re
 import asyncio
-import json
 
 router = Router()
 
@@ -100,18 +99,37 @@ def parse_datetime(text: str) -> datetime | None:
     
     return None
 
-async def send_reminder(bot, chat_id: int, reminder_id: str, message_text: str):
+async def send_reminder(bot, chat_id: int, reminder_id, message_text: str, remind_time: datetime, db=None):
     """Background task to send reminder"""
-    reminder = user_reminders.get(reminder_id)
-    if not reminder:
-        return
-    
     # Wait until the reminder time
     now = datetime.now()
-    wait_time = (reminder['time'] - now).total_seconds()
+    wait_time = (remind_time - now).total_seconds()
     
     if wait_time > 0:
         await asyncio.sleep(wait_time)
+    
+    # Verify status in database or in-memory
+    if db:
+        try:
+            # If reminder_id is string (fallback), check in-memory
+            if not isinstance(reminder_id, int):
+                try:
+                    reminder_id = int(reminder_id)
+                except ValueError:
+                    if reminder_id not in user_reminders:
+                        return
+                    reminder_id = None
+            
+            if reminder_id is not None:
+                async with db.pool.acquire() as conn:
+                    status = await conn.fetchval("SELECT status FROM reminders WHERE id = $1", reminder_id)
+                    if status != 'active':
+                        return
+        except Exception as e:
+            print(f"Error checking reminder status: {e}")
+    else:
+        if reminder_id not in user_reminders:
+            return
     
     # Send the reminder
     keyboard = InlineKeyboardMarkup(
@@ -126,19 +144,28 @@ async def send_reminder(bot, chat_id: int, reminder_id: str, message_text: str):
         chat_id,
         f"<b>⏰ REMINDER!</b>\n\n"
         f"<b>📝 Message:</b> {message_text}\n"
-        f"<b>🕐 Scheduled:</b> {reminder['time'].strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"<b>🕐 Scheduled:</b> {remind_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         f"<i>What would you like to do?</i>",
         reply_markup=keyboard,
         parse_mode="HTML"
     )
     
-    # Remove from active reminders (or mark as sent)
-    if reminder_id in user_reminders:
-        del user_reminders[reminder_id]
+    # Mark as completed or remove from active
+    if db and isinstance(reminder_id, int):
+        try:
+            await db.update_reminder_status(reminder_id, 'completed')
+        except Exception:
+            pass
+    else:
+        if reminder_id in user_reminders:
+            del user_reminders[reminder_id]
 
 @router.message(Command("remind"))
-async def cmd_remind(message: Message, state: FSMContext):
+async def cmd_remind(message: Message, state: FSMContext, db=None):
     """Handle /remind command"""
+    if db:
+        await db.log_command(message.from_user.id, "remind")
+        
     args = message.text.split(maxsplit=1)
     
     if len(args) < 2:
@@ -161,9 +188,9 @@ async def cmd_remind(message: Message, state: FSMContext):
         return
     
     full_text = args[1]
-    await process_reminder(message, full_text, state)
+    await process_reminder(message, full_text, state, db)
 
-async def process_reminder(message: Message, text: str, state: FSMContext):
+async def process_reminder(message: Message, text: str, state: FSMContext, db=None):
     """Process reminder creation"""
     # Parse time and message
     # Try to extract time from beginning
@@ -216,19 +243,32 @@ async def process_reminder(message: Message, text: str, state: FSMContext):
         )
         return
     
-    # Create reminder
-    reminder_id = f"{message.chat.id}_{len(user_reminders) + 1}_{int(reminder_time.timestamp())}"
+    # Create reminder in DB or in memory fallback
+    if db:
+        try:
+            reminder_id = await db.add_reminder(message.from_user.id, message_part, reminder_time)
+        except Exception as e:
+            print(f"Failed to add reminder to DB: {e}")
+            reminder_id = f"{message.chat.id}_{len(user_reminders) + 1}_{int(reminder_time.timestamp())}"
+            user_reminders[reminder_id] = {
+                "chat_id": message.chat.id,
+                "user_id": message.from_user.id,
+                "message": message_part,
+                "time": reminder_time,
+                "created_at": datetime.now()
+            }
+    else:
+        reminder_id = f"{message.chat.id}_{len(user_reminders) + 1}_{int(reminder_time.timestamp())}"
+        user_reminders[reminder_id] = {
+            "chat_id": message.chat.id,
+            "user_id": message.from_user.id,
+            "message": message_part,
+            "time": reminder_time,
+            "created_at": datetime.now()
+        }
     
-    user_reminders[reminder_id] = {
-        "chat_id": message.chat.id,
-        "user_id": message.from_user.id,
-        "message": message_part,
-        "time": reminder_time,
-        "created_at": datetime.now()
-    }
-    
-    # Schedule the reminder
-    asyncio.create_task(send_reminder(message.bot, message.chat.id, reminder_id, message_part))
+    # Schedule the reminder background task
+    asyncio.create_task(send_reminder(message.bot, message.chat.id, reminder_id, message_part, reminder_time, db))
     
     # Format time difference
     time_diff = reminder_time - datetime.now()
@@ -247,7 +287,7 @@ async def process_reminder(message: Message, text: str, state: FSMContext):
         f"<b>✅ Reminder Set!</b>\n\n"
         f"<b>📝 Message:</b> {message_part}\n"
         f"<b>⏰ Time:</b> {reminder_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-        f"<b>⌛ In:</b> {' '.join(time_str)}\n\n"
+        f"<b>⌛ In:</b> {' '.join(time_str) if time_str else 'less than a minute'}\n\n"
         f"<i>I'll remind you at the specified time! 🔔</i>",
         parse_mode="HTML"
     )
@@ -264,68 +304,133 @@ async def get_reminder_message(message: Message, state: FSMContext):
     )
 
 @router.message(ReminderStates.waiting_for_time)
-async def get_reminder_time(message: Message, state: FSMContext):
+async def get_reminder_time(message: Message, state: FSMContext, db=None):
     """Get reminder time from user"""
     data = await state.get_data()
     reminder_text = data.get('message_text')
     
     full_text = f"{message.text} {reminder_text}"
-    await process_reminder(message, full_text, state)
+    await process_reminder(message, full_text, state, db)
     await state.clear()
 
 @router.callback_query(F.data.startswith("remind_done_"))
-async def reminder_done(callback: CallbackQuery):
+async def reminder_done(callback: CallbackQuery, db=None):
     """Mark reminder as done"""
-    reminder_id = callback.data.split("_")[2]
+    reminder_id_str = callback.data.split("_")[2]
+    try:
+        reminder_id = int(reminder_id_str)
+    except ValueError:
+        reminder_id = reminder_id_str
     
-    if reminder_id in user_reminders:
-        del user_reminders[reminder_id]
-        await callback.answer("✅ Reminder completed!")
-        await callback.message.edit_text("✅ Reminder marked as done.")
+    if db and isinstance(reminder_id, int):
+        try:
+            await db.update_reminder_status(reminder_id, 'completed')
+            await callback.answer("✅ Reminder completed!")
+            await callback.message.edit_text("✅ Reminder marked as done.")
+        except Exception as e:
+            await callback.answer(f"Error: {e}")
     else:
-        await callback.answer("Reminder already processed!")
+        if reminder_id in user_reminders:
+            del user_reminders[reminder_id]
+            await callback.answer("✅ Reminder completed!")
+            await callback.message.edit_text("✅ Reminder marked as done.")
+        else:
+            await callback.answer("Reminder already processed!")
 
 @router.callback_query(F.data.startswith("remind_snooze_"))
-async def reminder_snooze(callback: CallbackQuery):
+async def reminder_snooze(callback: CallbackQuery, db=None):
     """Snooze reminder for 5 minutes"""
-    reminder_id = callback.data.split("_")[2]
+    reminder_id_str = callback.data.split("_")[2]
+    try:
+        reminder_id = int(reminder_id_str)
+    except ValueError:
+        reminder_id = reminder_id_str
+        
+    new_time = datetime.now() + timedelta(minutes=5)
     
-    if reminder_id in user_reminders:
-        # Update time
-        user_reminders[reminder_id]['time'] += timedelta(minutes=5)
-        
-        # Reschedule
-        asyncio.create_task(send_reminder(
-            callback.bot,
-            user_reminders[reminder_id]['chat_id'],
-            reminder_id,
-            user_reminders[reminder_id]['message']
-        ))
-        
-        await callback.answer("⏰ Snoozed for 5 minutes!")
-        await callback.message.edit_text("⏰ Reminder snoozed for 5 minutes.")
+    if db and isinstance(reminder_id, int):
+        try:
+            await db.update_reminder_status(reminder_id, 'active', remind_time=new_time)
+            msg = await db.pool.fetchval("SELECT message FROM reminders WHERE id = $1", reminder_id)
+            asyncio.create_task(send_reminder(
+                callback.bot,
+                callback.message.chat.id,
+                reminder_id,
+                msg or "Reminder",
+                new_time,
+                db
+            ))
+            await callback.answer("⏰ Snoozed for 5 minutes!")
+            await callback.message.edit_text("⏰ Reminder snoozed for 5 minutes.")
+        except Exception as e:
+            await callback.answer(f"Error: {e}")
     else:
-        await callback.answer("Reminder already processed!")
+        if reminder_id in user_reminders:
+            user_reminders[reminder_id]['time'] = new_time
+            asyncio.create_task(send_reminder(
+                callback.bot,
+                user_reminders[reminder_id]['chat_id'],
+                reminder_id,
+                user_reminders[reminder_id]['message'],
+                new_time,
+                db
+            ))
+            await callback.answer("⏰ Snoozed for 5 minutes!")
+            await callback.message.edit_text("⏰ Reminder snoozed for 5 minutes.")
+        else:
+            await callback.answer("Reminder already processed!")
 
 @router.callback_query(F.data.startswith("remind_delete_"))
-async def reminder_delete(callback: CallbackQuery):
+async def reminder_delete(callback: CallbackQuery, db=None):
     """Delete reminder"""
-    reminder_id = callback.data.split("_")[2]
+    reminder_id_str = callback.data.split("_")[2]
+    try:
+        reminder_id = int(reminder_id_str)
+    except ValueError:
+        reminder_id = reminder_id_str
     
-    if reminder_id in user_reminders:
-        del user_reminders[reminder_id]
-        await callback.answer("❌ Reminder deleted!")
-        await callback.message.edit_text("❌ Reminder has been deleted.")
+    if db and isinstance(reminder_id, int):
+        try:
+            await db.update_reminder_status(reminder_id, 'deleted')
+            await callback.answer("❌ Reminder deleted!")
+            await callback.message.edit_text("❌ Reminder has been deleted.")
+        except Exception as e:
+            await callback.answer(f"Error: {e}")
     else:
-        await callback.answer("Reminder already processed!")
+        if reminder_id in user_reminders:
+            del user_reminders[reminder_id]
+            await callback.answer("❌ Reminder deleted!")
+            await callback.message.edit_text("❌ Reminder has been deleted.")
+        else:
+            await callback.answer("Reminder already processed!")
 
 @router.message(Command("list_reminders"))
-async def list_reminders(message: Message):
+async def list_reminders(message: Message, db=None):
     """List all active reminders for user"""
-    user_reminder_list = [
-        (rid, r) for rid, r in user_reminders.items()
-        if r['user_id'] == message.from_user.id
-    ]
+    if db:
+        try:
+            async with db.pool.acquire() as conn:
+                records = await conn.fetch("""
+                    SELECT id, message, remind_time, created_at
+                    FROM reminders
+                    WHERE user_id = $1 AND status = 'active' AND remind_time > NOW()
+                    ORDER BY remind_time ASC
+                """, message.from_user.id)
+                user_reminder_list = [
+                    (r['id'], {
+                        "message": r['message'],
+                        "time": r['remind_time'],
+                        "created_at": r['created_at']
+                    }) for r in records
+                ]
+        except Exception as e:
+            print(f"Error fetching reminders: {e}")
+            user_reminder_list = []
+    else:
+        user_reminder_list = [
+            (rid, r) for rid, r in user_reminders.items()
+            if r['user_id'] == message.from_user.id
+        ]
     
     if not user_reminder_list:
         await message.answer("📭 You have no active reminders.")

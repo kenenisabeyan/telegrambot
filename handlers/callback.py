@@ -4,10 +4,15 @@ from datetime import datetime
 
 router = Router()
 
-async def save_feedback(user_id: int, feedback_text: str):
+async def save_feedback(user_id: int, feedback_text: str, db=None):
     """Save user feedback to database"""
-    # In production, save to database
     print(f"📝 Feedback from user {user_id}: {feedback_text}")
+    
+    if db:
+        try:
+            await db.add_feedback(user_id, feedback_text)
+        except Exception as e:
+            print(f"Failed to save feedback to database: {e}")
     
     # You can also save to a file
     with open(f"logs/feedback_{datetime.now().strftime('%Y%m%d')}.log", "a", encoding="utf-8") as f:

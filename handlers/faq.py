@@ -3,7 +3,6 @@ from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-import json
 
 router = Router()
 
@@ -48,8 +47,10 @@ class FAQStates(StatesGroup):
     searching = State()
 
 @router.message(Command("faq"))
-async def cmd_faq(message: Message):
+async def cmd_faq(message: Message, db=None):
     """Show FAQ categories"""
+    if db:
+        await db.log_command(message.from_user.id, "faq")
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=cat_name, callback_data=f"faq_cat_{cat_key}")]
@@ -222,7 +223,7 @@ async def contact_support(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("faq_helpful_"))
 async def helpful_feedback(callback: CallbackQuery):
     """Record helpful feedback"""
-    faq_id = callback.data.split("_")[2]
+    _faq_id = callback.data.split("_")[2]
     # Save to database
     await callback.answer("Thanks for your feedback! 👍")
     await callback.message.delete()
@@ -230,7 +231,7 @@ async def helpful_feedback(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("faq_nothelpful_"))
 async def nothelpful_feedback(callback: CallbackQuery):
     """Record not helpful feedback"""
-    faq_id = callback.data.split("_")[2]
+    _faq_id = callback.data.split("_")[2]
     # Save to database and suggest improvements
     await callback.answer("Sorry about that! We'll improve this answer.")
     await callback.message.delete()

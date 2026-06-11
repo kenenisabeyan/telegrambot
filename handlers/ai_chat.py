@@ -4,7 +4,6 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 import aiohttp
-import json
 from os import getenv
 
 router = Router()
@@ -104,7 +103,7 @@ def get_mock_response(prompt: str) -> str:
     )
 
 @router.message(Command("ai"))
-async def cmd_ai(message: Message, state: FSMContext):
+async def cmd_ai(message: Message, state: FSMContext, db=None):
     """Handle /ai command"""
     args = message.text.split(maxsplit=1)
     
@@ -166,8 +165,10 @@ async def start_ai_chat(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 @router.message(AIStates.chatting)
-async def handle_ai_chat(message: Message, state: FSMContext):
+async def handle_ai_chat(message: Message, state: FSMContext, db=None):
     """Handle messages during AI chat session"""
+    if db:
+        await db.log_command(message.from_user.id, "ai")
     if message.text.startswith("/end_chat"):
         await state.clear()
         await message.answer("👋 AI Chat session ended. Use /ai to start again!")

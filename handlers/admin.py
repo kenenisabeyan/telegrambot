@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from os import getenv
 from datetime import datetime
+from utils.keyboards import get_admin_keyboard
 
 router = Router()
 
@@ -19,57 +20,46 @@ class BroadcastStates(StatesGroup):
     waiting_for_message = State()
 
 @router.message(Command("admin"))
-async def cmd_admin(message: Message):
+async def cmd_admin(message: Message, db=None):
     """Admin panel (restricted)"""
     if not is_admin(message.from_user.id):
         await message.answer("❌ Access denied. Admin only.")
         return
     
-    keyboard = [
-        [("📊 Bot Stats", "admin_stats")],
-        [("📢 Broadcast", "admin_broadcast")],
-        [("👥 Users", "admin_users")],
-        [("📝 Logs", "admin_logs")],
-        [("⚙️ Settings", "admin_settings")]
-    ]
-    
-    admin_keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)]
-            for text, data in keyboard
-        ]
-    )
-    
+    if db:
+        await db.log_command(message.from_user.id, "admin")
+        
     await message.answer(
         "<b>🔐 Admin Panel</b>\n\n"
         "Welcome to the admin dashboard.\n"
         "Select an option below:",
-        reply_markup=admin_keyboard,
+        reply_markup=get_admin_keyboard(),
         parse_mode="HTML"
     )
 
 @router.callback_query(F.data == "admin_stats")
-async def admin_stats(callback: CallbackQuery):
+async def admin_stats(callback: CallbackQuery, db=None):
     """Show bot statistics"""
     if not is_admin(callback.from_user.id):
         await callback.answer("Access denied!")
         return
     
-    stats = {
-        "users": 1234,
-        "active_today": 456,
-        "total_messages": 56789,
-        "commands_used": 12345,
-        "reminders_set": 678,
-        "ai_queries": 2345,
-        "weather_checks": 1234
-    }
+    if db:
+        stats = await db.get_admin_stats()
+    else:
+        stats = {
+            "users": 0,
+            "active_today": 0,
+            "commands_used": 0,
+            "reminders_set": 0,
+            "ai_queries": 0,
+            "weather_checks": 0
+        }
     
     stats_text = (
         "<b>📊 Bot Statistics</b>\n\n"
         f"<b>👥 Total Users:</b> {stats['users']}\n"
         f"<b>✅ Active Today:</b> {stats['active_today']}\n"
-        f"<b>💬 Total Messages:</b> {stats['total_messages']}\n"
         f"<b>⚡ Commands Used:</b> {stats['commands_used']}\n"
         f"<b>⏰ Reminders Set:</b> {stats['reminders_set']}\n"
         f"<b>🤖 AI Queries:</b> {stats['ai_queries']}\n"
@@ -77,7 +67,7 @@ async def admin_stats(callback: CallbackQuery):
         f"<i>Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>"
     )
     
-    await callback.message.edit_text(stats_text, parse_mode="HTML")
+    await callback.message.edit_text(stats_text, reply_markup=get_admin_keyboard(), parse_mode="HTML")
     await callback.answer()
 
 @router.callback_query(F.data == "admin_broadcast")

@@ -9,13 +9,13 @@ def test_bot_imports():
     """Test that all modules import correctly"""
     try:
         # Test each module individually
-        from handlers import start
-        from handlers import faq
-        from handlers import reminders
-        from handlers import ai_chat
-        from handlers import weather
-        from handlers import admin
-        from handlers import callback
+        from handlers import start  # noqa: F401
+        from handlers import faq  # noqa: F401
+        from handlers import reminders  # noqa: F401
+        from handlers import ai_chat  # noqa: F401
+        from handlers import weather  # noqa: F401
+        from handlers import admin  # noqa: F401
+        from handlers import callback  # noqa: F401
         assert True
     except ImportError as e:
         assert False, f"Import failed: {e}"
@@ -55,5 +55,4 @@ def test_handlers_exist():
     
     for handler in required_handlers:
         handler_path = handlers_dir / handler
-        assert handler_path.exists(), f"Handler {handler} not found"python bot.py
-        
+        assert handler_path.exists(), f"Handler {handler} not found"
