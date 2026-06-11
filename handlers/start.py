@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 
 router = Router()
@@ -22,51 +22,47 @@ def get_main_keyboard():
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     """Handle /start command"""
-    await state.clear()  # Clear any active states
+    await state.clear()
     
     welcome_text = (
-        f"<b>👋 Welcome, {message.from_user.full_name}!</b>\n\n"
-        f"🤖 I'm an <b>Enterprise-Grade Telegram Bot</b> with powerful features:\n\n"
-        f"✅ <b>FAQ System</b> - Browse answers to common questions\n"
-        f"✅ <b>Smart Reminders</b> - Never miss important tasks\n"
-        f"✅ <b>AI Chat</b> - Powered by advanced AI\n"
-        f"✅ <b>Live Weather</b> - Real-time weather updates\n\n"
-        f"📌 <b>Quick Start:</b>\n"
+        f"👋 Welcome, {message.from_user.full_name}!\n\n"
+        f"🤖 I'm an Enterprise-Grade Telegram Bot with powerful features:\n\n"
+        f"✅ FAQ System\n"
+        f"✅ Smart Reminders\n"
+        f"✅ AI Chat\n"
+        f"✅ Live Weather\n\n"
+        f"📌 Quick Start:\n"
         f"• Use the buttons below\n"
         f"• Type /help for all commands\n"
         f"• Type /faq to browse questions\n\n"
-        f"<i>Let's get started!</i> 🚀"
+        f"Let's get started! 🚀"
     )
     
-    await message.answer(
-        welcome_text,
-        reply_markup=get_main_keyboard()
-    )
+    await message.answer(welcome_text, reply_markup=get_main_keyboard())
 
 @router.message(Command("help"))
 @router.message(F.text == "ℹ️ Help")
 async def cmd_help(message: Message):
     """Handle /help command and Help button"""
     help_text = (
-        "<b>📚 Available Commands</b>\n\n"
-        "<b>Basic Commands:</b>\n"
+        "📚 Available Commands\n\n"
+        "Basic Commands:\n"
         "• /start - Restart the bot\n"
         "• /help - Show this help menu\n"
         "• /cancel - Cancel current operation\n\n"
         
-        "<b>Feature Commands:</b>\n"
+        "Feature Commands:\n"
         "• /faq - Browse FAQ database\n"
-        "• /remind - Set a reminder (e.g., /remind 10m Call John)\n"
-        "• /ai - Chat with AI (e.g., /ai What is Python?)\n"
-        "• /weather - Get weather (e.g., /weather London)\n\n"
+        "• /remind - Set a reminder\n"
+        "• /ai - Chat with AI\n"
+        "• /weather - Get weather\n\n"
         
-        "<b>💡 Examples:</b>\n"
-        "<code>/remind 30m Team meeting</code>\n"
-        "<code>/ai Write a Python function to sort a list</code>\n"
-        "<code>/weather Tokyo</code>\n\n"
+        "💡 Examples:\n"
+        "/remind Call John at 3pm\n"
+        "/ai What is Python?\n"
+        "/weather London\n\n"
         
-        "<b>🔧 Need more help?</b>\n"
-        "Contact: support@company.com"
+        "🔧 Need more help? Contact support."
     )
     
     await message.answer(help_text, reply_markup=get_main_keyboard())
@@ -77,17 +73,41 @@ async def cmd_cancel(message: Message, state: FSMContext):
     current_state = await state.get_state()
     if current_state is not None:
         await state.clear()
-        await message.answer(
-            "✅ Operation cancelled. What would you like to do?",
-            reply_markup=get_main_keyboard()
-        )
+        await message.answer("✅ Operation cancelled. What would you like to do?", reply_markup=get_main_keyboard())
     else:
-        await message.answer(
-            "❌ No active operation to cancel.",
-            reply_markup=get_main_keyboard()
-        )
+        await message.answer("❌ No active operation to cancel.", reply_markup=get_main_keyboard())
 
 @router.message(Command("cancel"))
 async def cmd_cancel_command(message: Message, state: FSMContext):
     """Handle /cancel command"""
     await cmd_cancel(message, state)
+
+# Handle button presses for FAQ
+@router.message(F.text == "❓ FAQ")
+async def faq_button(message: Message):
+    await cmd_faq(message)
+
+# Handle button presses for Reminder
+@router.message(F.text == "⏰ Reminder")
+async def reminder_button(message: Message, state: FSMContext):
+    await cmd_remind(message, state)
+
+# Handle button presses for AI Chat
+@router.message(F.text == "🤖 AI Chat")
+async def ai_button(message: Message):
+    # Create a fake command message
+    message.text = "/ai"
+    await cmd_ai(message)
+
+# Handle button presses for Weather
+@router.message(F.text == "🌤 Weather")
+async def weather_button(message: Message):
+    # Create a fake command message
+    message.text = "/weather"
+    await cmd_weather(message)
+
+# Import the handler functions
+from handlers.faq import cmd_faq
+from handlers.reminders import cmd_remind
+from handlers.ai_chat import cmd_ai
+from handlers.weather import cmd_weather
