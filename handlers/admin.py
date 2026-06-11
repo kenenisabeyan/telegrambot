@@ -10,7 +10,13 @@ from utils.keyboards import get_admin_keyboard
 router = Router()
 
 # Get admin IDs from environment
-ADMIN_IDS = [int(id.strip()) for id in getenv("ADMIN_IDS", "").split(",") if id.strip()]
+ADMIN_IDS = []
+for admin_id_str in getenv("ADMIN_IDS", "").split(","):
+    if admin_id_str.strip():
+        try:
+            ADMIN_IDS.append(int(admin_id_str.strip()))
+        except ValueError:
+            pass
 
 def is_admin(user_id: int) -> bool:
     """Check if user is admin"""

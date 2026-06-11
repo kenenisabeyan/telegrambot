@@ -1,1 +1,14 @@
 2026-06-11 13:31:03,291 - __main__ - INFO - Using Memory storage
+2026-06-11 16:38:53,815 - __main__ - INFO - Using Memory storage
+2026-06-11 16:38:53,868 - __main__ - INFO - Database URL found in environment variables.
+2026-06-11 16:39:57,648 - __main__ - INFO - Using Memory storage
+2026-06-11 16:39:57,698 - __main__ - INFO - Database URL found in environment variables.
+2026-06-11 16:39:58,771 - __main__ - INFO - Bot commands set successfully
+2026-06-11 16:39:58,772 - __main__ - INFO - Connecting to PostgreSQL database...
+2026-06-11 16:40:04,192 - __main__ - INFO - PostgreSQL database connected and tables verified.
+2026-06-11 16:40:04,821 - __main__ - INFO - Loaded 0 active reminders to reschedule.
+2026-06-11 16:40:04,844 - aiogram.dispatcher - INFO - Start polling
+2026-06-11 16:40:04,975 - aiogram.dispatcher - INFO - Run polling for bot @kenenisabeyanbot id=7649497815 - 'kenenisa learning bot'
+2026-06-11 16:40:40,781 - aiogram.event - INFO - Update id=889371306 is handled. Duration 2616 ms by bot id=7649497815
+2026-06-11 16:40:41,340 - aiogram.event - INFO - Update id=889371307 is handled. Duration 975 ms by bot id=7649497815
+2026-06-11 16:42:12,874 - __main__ - INFO - Using Memory storage
