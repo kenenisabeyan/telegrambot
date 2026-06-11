@@ -274,4 +274,69 @@ async def get_reminder_time(message: Message, state: FSMContext):
     await state.clear()
 
 @router.callback_query(F.data.startswith("remind_done_"))
-async
+async def reminder_done(callback: CallbackQuery):
+    """Mark reminder as done"""
+    reminder_id = callback.data.split("_")[2]
+    
+    if reminder_id in user_reminders:
+        del user_reminders[reminder_id]
+        await callback.answer("✅ Reminder completed!")
+        await callback.message.edit_text("✅ Reminder marked as done.")
+    else:
+        await callback.answer("Reminder already processed!")
+
+@router.callback_query(F.data.startswith("remind_snooze_"))
+async def reminder_snooze(callback: CallbackQuery):
+    """Snooze reminder for 5 minutes"""
+    reminder_id = callback.data.split("_")[2]
+    
+    if reminder_id in user_reminders:
+        # Update time
+        user_reminders[reminder_id]['time'] += timedelta(minutes=5)
+        
+        # Reschedule
+        asyncio.create_task(send_reminder(
+            callback.bot,
+            user_reminders[reminder_id]['chat_id'],
+            reminder_id,
+            user_reminders[reminder_id]['message']
+        ))
+        
+        await callback.answer("⏰ Snoozed for 5 minutes!")
+        await callback.message.edit_text("⏰ Reminder snoozed for 5 minutes.")
+    else:
+        await callback.answer("Reminder already processed!")
+
+@router.callback_query(F.data.startswith("remind_delete_"))
+async def reminder_delete(callback: CallbackQuery):
+    """Delete reminder"""
+    reminder_id = callback.data.split("_")[2]
+    
+    if reminder_id in user_reminders:
+        del user_reminders[reminder_id]
+        await callback.answer("❌ Reminder deleted!")
+        await callback.message.edit_text("❌ Reminder has been deleted.")
+    else:
+        await callback.answer("Reminder already processed!")
+
+@router.message(Command("list_reminders"))
+async def list_reminders(message: Message):
+    """List all active reminders for user"""
+    user_reminder_list = [
+        (rid, r) for rid, r in user_reminders.items()
+        if r['user_id'] == message.from_user.id
+    ]
+    
+    if not user_reminder_list:
+        await message.answer("📭 You have no active reminders.")
+        return
+    
+    reminder_text = "<b>📋 Your Active Reminders:</b>\n\n"
+    for i, (rid, reminder) in enumerate(user_reminder_list, 1):
+        reminder_text += (
+            f"{i}. <b>{reminder['message']}</b>\n"
+            f"   🕐 {reminder['time'].strftime('%Y-%m-%d %H:%M')}\n"
+            f"   📅 Created: {reminder['created_at'].strftime('%Y-%m-%d %H:%M')}\n\n"
+        )
+    
+    await message.answer(reminder_text, parse_mode="HTML")
