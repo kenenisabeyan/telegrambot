@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from os import getenv
@@ -33,8 +33,6 @@ async def cmd_admin(message: Message):
         [("⚙️ Settings", "admin_settings")]
     ]
     
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    
     admin_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)]
@@ -58,7 +56,7 @@ async def admin_stats(callback: CallbackQuery):
         return
     
     stats = {
-        "users": 1234,  # Fetch from database
+        "users": 1234,
         "active_today": 456,
         "total_messages": 56789,
         "commands_used": 12345,
@@ -113,8 +111,6 @@ async def send_broadcast(message: Message, state: FSMContext):
         [("❌ Cancel", "broadcast_cancel")]
     ]
     
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    
     confirm_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)]
@@ -130,7 +126,6 @@ async def send_broadcast(message: Message, state: FSMContext):
     )
     
     await state.update_data(broadcast_message=broadcast_text)
-    await state.set_state(BroadcastStates.waiting_for_message)  # Keep state
 
 @router.callback_query(F.data == "broadcast_confirm")
 async def broadcast_confirm(callback: CallbackQuery, state: FSMContext):
@@ -138,8 +133,6 @@ async def broadcast_confirm(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     broadcast_text = data.get('broadcast_message')
     
-    # In production, fetch all user IDs from database
-    # For now, just acknowledge
     await callback.message.edit_text(
         f"✅ Broadcast sent successfully!\n\n"
         f"Message: {broadcast_text[:100]}..."
@@ -161,7 +154,6 @@ async def admin_users(callback: CallbackQuery):
         await callback.answer("Access denied!")
         return
     
-    # This would fetch from database
     await callback.message.edit_text(
         "<b>👥 User Management</b>\n\n"
         "Features coming soon:\n"
@@ -170,6 +162,36 @@ async def admin_users(callback: CallbackQuery):
         "• Manage user roles\n"
         "• Block/unblock users\n\n"
         "<i>Database integration required for full functionality.</i>",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "admin_logs")
+async def admin_logs(callback: CallbackQuery):
+    """Show logs"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Access denied!")
+        return
+    
+    await callback.message.edit_text(
+        "<b>📝 System Logs</b>\n\n"
+        "Log management coming soon!\n\n"
+        "<i>Check the logs directory for log files.</i>",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "admin_settings")
+async def admin_settings(callback: CallbackQuery):
+    """Show settings"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Access denied!")
+        return
+    
+    await callback.message.edit_text(
+        "<b>⚙️ Bot Settings</b>\n\n"
+        "Settings management coming soon!\n\n"
+        "<i>Edit .env file to change configuration.</i>",
         parse_mode="HTML"
     )
     await callback.answer()

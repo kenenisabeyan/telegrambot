@@ -7,7 +7,6 @@ from datetime import datetime
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import BotCommand
 from dotenv import load_dotenv
 
@@ -30,18 +29,13 @@ logger = logging.getLogger(__name__)
 
 # Get configuration
 TOKEN = getenv("BOT_TOKEN")
-REDIS_URL = getenv("REDIS_URL", None)
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN is not set in environment variables")
 
-# Choose storage (Redis for production, Memory for development)
-if REDIS_URL:
-    storage = RedisStorage.from_url(REDIS_URL)
-    logger.info("Using Redis storage")
-else:
-    storage = MemoryStorage()
-    logger.info("Using Memory storage")
+# Use Memory storage
+storage = MemoryStorage()
+logger.info("Using Memory storage")
 
 async def set_bot_commands(bot: Bot):
     """Set bot commands for menu"""
@@ -56,6 +50,7 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="cancel", description="❌ Cancel current operation"),
         BotCommand(command="stats", description="📊 Bot statistics"),
         BotCommand(command="feedback", description="💬 Send feedback"),
+        BotCommand(command="admin", description="🔐 Admin panel"),
     ]
     await bot.set_my_commands(commands)
     logger.info("Bot commands set successfully")
