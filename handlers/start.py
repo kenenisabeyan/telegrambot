@@ -1,113 +1,197 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from aiogram.fsm.context import FSMContext
+from datetime import datetime
+import json
 
 router = Router()
 
-# Create main menu keyboard
-def get_main_keyboard():
+# Main menu keyboard with web app support
+def get_main_keyboard(user_id: int = None):
     """Return the main menu keyboard"""
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="❓ FAQ"), KeyboardButton(text="⏰ Reminder")],
-            [KeyboardButton(text="🤖 AI Chat"), KeyboardButton(text="🌤 Weather")],
-            [KeyboardButton(text="ℹ️ Help"), KeyboardButton(text="❌ Cancel")]
-        ],
+    buttons = [
+        [KeyboardButton(text="❓ FAQ"), KeyboardButton(text="⏰ Reminder")],
+        [KeyboardButton(text="🤖 AI Chat"), KeyboardButton(text="🌤 Weather")],
+        [KeyboardButton(text="📊 Stats"), KeyboardButton(text="💬 Feedback")],
+        [KeyboardButton(text="ℹ️ Help"), KeyboardButton(text="❌ Cancel")]
+    ]
+    
+    # Add web app button for premium users
+    # buttons.append([KeyboardButton(text="🌐 Open Web App", web_app=WebAppInfo(url="https://your-webapp.com"))])
+    
+    return ReplyKeyboardMarkup(
+        keyboard=buttons,
         resize_keyboard=True,
         input_field_placeholder="Choose an option or type a command..."
     )
-    return keyboard
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
-    """Handle /start command"""
+    """Handle /start command with deep linking"""
     await state.clear()
     
+    # Handle deep linking (e.g., /start ref_123)
+    args = message.text.split()
+    referrer = None
+    if len(args) > 1:
+        referrer = args[1]
+        # Save referral to database (implement later)
+    
     welcome_text = (
-        f"👋 Welcome, {message.from_user.full_name}!\n\n"
-        f"🤖 I'm an Enterprise-Grade Telegram Bot with powerful features:\n\n"
-        f"✅ FAQ System\n"
-        f"✅ Smart Reminders\n"
-        f"✅ AI Chat\n"
-        f"✅ Live Weather\n\n"
-        f"📌 Quick Start:\n"
-        f"• Use the buttons below\n"
+        f"<b>👋 Welcome, {message.from_user.full_name}!</b>\n\n"
+        f"<b>🤖 Enterprise Telegram Bot</b>\n"
+        f"<i>Your all-in-one productivity assistant</i>\n\n"
+        f"<b>✨ Features:</b>\n"
+        f"• 📚 <b>FAQ System</b> - Instant answers\n"
+        f"• ⏰ <b>Smart Reminders</b> - Never miss tasks\n"
+        f"• 🤖 <b>AI Chat</b> - Powered by GPT\n"
+        f"• 🌤 <b>Live Weather</b> - Real-time updates\n"
+        f"• 📊 <b>Analytics</b> - Track your usage\n"
+        f"• 💬 <b>Feedback</b> - Help us improve\n\n"
+        f"<b>🚀 Quick Start:</b>\n"
+        f"• Click buttons below\n"
         f"• Type /help for all commands\n"
-        f"• Type /faq to browse questions\n\n"
-        f"Let's get started! 🚀"
+        f"• Visit our website for more info\n\n"
+        f"<i>Let's make your day productive! 💪</i>"
     )
     
-    await message.answer(welcome_text, reply_markup=get_main_keyboard())
+    await message.answer(
+        welcome_text,
+        reply_markup=get_main_keyboard(message.from_user.id)
+    )
+    
+    # Log user start (implement database logging later)
+    print(f"User {message.from_user.id} started bot at {datetime.now()}")
 
 @router.message(Command("help"))
 @router.message(F.text == "ℹ️ Help")
 async def cmd_help(message: Message):
-    """Handle /help command and Help button"""
+    """Handle /help command"""
     help_text = (
-        "📚 Available Commands\n\n"
-        "Basic Commands:\n"
+        "<b>📚 Complete Command Reference</b>\n\n"
+        
+        "<b>🔹 Basic Commands:</b>\n"
         "• /start - Restart the bot\n"
-        "• /help - Show this help menu\n"
+        "• /help - Show this help\n"
+        "• /menu - Show main menu\n"
         "• /cancel - Cancel current operation\n\n"
         
-        "Feature Commands:\n"
+        "<b>🔹 Productivity:</b>\n"
         "• /faq - Browse FAQ database\n"
-        "• /remind - Set a reminder\n"
+        "• /remind - Set smart reminder\n"
+        "  <code>/remind 10m Call John</code>\n"
+        "  <code>/remind tomorrow 9am Meeting</code>\n\n"
+        
+        "<b>🔹 AI & Information:</b>\n"
         "• /ai - Chat with AI\n"
-        "• /weather - Get weather\n\n"
+        "  <code>/ai What is Python?</code>\n"
+        "• /weather - Get weather\n"
+        "  <code>/weather London</code>\n\n"
         
-        "💡 Examples:\n"
-        "/remind Call John at 3pm\n"
-        "/ai What is Python?\n"
-        "/weather London\n\n"
+        "<b>🔹 Utility:</b>\n"
+        "• /stats - View your statistics\n"
+        "• /feedback - Send feedback\n\n"
         
-        "🔧 Need more help? Contact support."
+        "<b>💡 Pro Tips:</b>\n"
+        "• Use natural language for reminders\n"
+        "• Ask AI to write code, explain concepts\n"
+        "• Get weather for any city worldwide\n\n"
+        
+        "<b>📞 Support:</b>\n"
+        "• Email: support@company.com\n"
+        "• Telegram: @support_bot\n"
+        "• Website: https://company.com\n\n"
+        
+        "<i>Need more help? Contact our support team 24/7!</i>"
     )
     
-    await message.answer(help_text, reply_markup=get_main_keyboard())
+    await message.answer(help_text, reply_markup=get_main_keyboard(message.from_user.id))
+
+@router.message(Command("menu"))
+@router.message(F.text == "📋 Menu")
+async def cmd_menu(message: Message):
+    """Show main menu"""
+    await message.answer(
+        "<b>📋 Main Menu</b>\n\nChoose an option below:",
+        reply_markup=get_main_keyboard(message.from_user.id)
+    )
 
 @router.message(F.text == "❌ Cancel")
+@router.message(Command("cancel"))
 async def cmd_cancel(message: Message, state: FSMContext):
-    """Handle cancel button"""
+    """Handle cancel button/command"""
     current_state = await state.get_state()
     if current_state is not None:
         await state.clear()
-        await message.answer("✅ Operation cancelled. What would you like to do?", reply_markup=get_main_keyboard())
+        await message.answer(
+            "✅ Operation cancelled successfully.\n\nWhat would you like to do next?",
+            reply_markup=get_main_keyboard(message.from_user.id)
+        )
     else:
-        await message.answer("❌ No active operation to cancel.", reply_markup=get_main_keyboard())
+        await message.answer(
+            "❌ No active operation to cancel.\n\nUse the menu below to get started:",
+            reply_markup=get_main_keyboard(message.from_user.id)
+        )
 
-@router.message(Command("cancel"))
-async def cmd_cancel_command(message: Message, state: FSMContext):
-    """Handle /cancel command"""
-    await cmd_cancel(message, state)
+@router.message(Command("stats"))
+@router.message(F.text == "📊 Stats")
+async def cmd_stats(message: Message):
+    """Show user statistics"""
+    # This would pull from database in production
+    stats_text = (
+        "<b>📊 Your Statistics</b>\n\n"
+        f"<b>👤 User:</b> {message.from_user.full_name}\n"
+        f"<b>🆔 ID:</b> <code>{message.from_user.id}</code>\n"
+        f"<b>📅 Joined:</b> {datetime.now().strftime('%Y-%m-%d')}\n\n"
+        
+        "<b>📈 Usage Stats:</b>\n"
+        "• Messages sent: 0\n"
+        "• Commands used: 0\n"
+        "• Reminders set: 0\n"
+        "• AI queries: 0\n"
+        "• Weather checks: 0\n\n"
+        
+        "<b>🏆 Achievements:</b>\n"
+        "• 🌟 Bot Explorer\n"
+        "• 💬 First Message\n\n"
+        
+        "<i>More stats coming soon with premium features!</i>"
+    )
+    
+    await message.answer(stats_text, reply_markup=get_main_keyboard(message.from_user.id))
 
-# Handle button presses for FAQ
-@router.message(F.text == "❓ FAQ")
-async def faq_button(message: Message):
-    await cmd_faq(message)
+@router.message(Command("feedback"))
+@router.message(F.text == "💬 Feedback")
+async def cmd_feedback(message: Message, state: FSMContext):
+    """Collect feedback from users"""
+    from aiogram.fsm.state import State, StatesGroup
+    
+    class FeedbackStates(StatesGroup):
+        waiting_for_feedback = State()
+    
+    await state.set_state(FeedbackStates.waiting_for_feedback)
+    await message.answer(
+        "<b>💬 Send Feedback</b>\n\n"
+        "Please send your feedback, suggestions, or bug report.\n"
+        "We value your input!\n\n"
+        "<i>Type /cancel to cancel</i>",
+        parse_mode="HTML"
+    )
 
-# Handle button presses for Reminder
-@router.message(F.text == "⏰ Reminder")
-async def reminder_button(message: Message, state: FSMContext):
-    await cmd_remind(message, state)
-
-# Handle button presses for AI Chat
-@router.message(F.text == "🤖 AI Chat")
-async def ai_button(message: Message):
-    # Create a fake command message
-    message.text = "/ai"
-    await cmd_ai(message)
-
-# Handle button presses for Weather
-@router.message(F.text == "🌤 Weather")
-async def weather_button(message: Message):
-    # Create a fake command message
-    message.text = "/weather"
-    await cmd_weather(message)
-
-# Import the handler functions
-from handlers.faq import cmd_faq
-from handlers.reminders import cmd_remind
-from handlers.ai_chat import cmd_ai
-from handlers.weather import cmd_weather
+@router.message(F.text & ~F.text.startswith("/"))
+async def handle_feedback(message: Message, state: FSMContext):
+    """Handle feedback input"""
+    from handlers.callback import save_feedback
+    
+    current_state = await state.get_state()
+    if current_state and "FeedbackStates" in str(current_state):
+        await save_feedback(message.from_user.id, message.text)
+        await state.clear()
+        await message.answer(
+            "<b>✅ Thank you for your feedback!</b>\n\n"
+            "We appreciate your input and will use it to improve our bot.\n\n"
+            "Is there anything else I can help you with?",
+            reply_markup=get_main_keyboard(message.from_user.id),
+            parse_mode="HTML"
+        )
