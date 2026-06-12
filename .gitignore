@@ -15,6 +15,25 @@ __pycache__/
 logs/
 *.log
 
+# Testing & Coverage
+.coverage
+htmlcov/
+.tox/
+
+# Builds & Packaging
+build/
+dist/
+*.egg-info/
+
+# IDE Settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
 # OS files
 .DS_Store
 Thumbs.db
