@@ -3,24 +3,15 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from os import getenv
 from datetime import datetime
 from utils.keyboards import get_admin_keyboard
+from config import settings
 
 router = Router()
 
-# Get admin IDs from environment
-ADMIN_IDS = []
-for admin_id_str in getenv("ADMIN_IDS", "").split(","):
-    if admin_id_str.strip():
-        try:
-            ADMIN_IDS.append(int(admin_id_str.strip()))
-        except ValueError:
-            pass
-
 def is_admin(user_id: int) -> bool:
     """Check if user is admin"""
-    return user_id in ADMIN_IDS
+    return user_id in settings.ADMIN_IDS
 
 class BroadcastStates(StatesGroup):
     waiting_for_message = State()

@@ -5,11 +5,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 import aiohttp
 from datetime import datetime
-from os import getenv
+from config import settings
 
 router = Router()
 
-WEATHER_API_KEY = getenv("OPENWEATHER_API_KEY")
+WEATHER_API_KEY = settings.OPENWEATHER_API_KEY
 WEATHER_URL = "http://api.openweathermap.org/data/2.5/weather"
 FORECAST_URL = "http://api.openweathermap.org/data/2.5/forecast"
 

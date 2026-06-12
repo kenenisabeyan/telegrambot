@@ -21,13 +21,14 @@ async def save_feedback(user_id: int, feedback_text: str, db=None):
 @router.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery):
     """Return to main menu"""
-    from handlers.start import get_main_keyboard
+    from utils.keyboards import get_main_keyboard
     
-    await callback.message.edit_text(
-        "<b>📋 Main Menu</b>\n\nChoose an option below:",
-        reply_markup=get_main_keyboard(),
+    await callback.message.answer(
+        "<b>Main Menu</b>\n\nChoose an option below:",
+        reply_markup=get_main_keyboard(callback.from_user.id),
         parse_mode="HTML"
     )
+    await callback.message.delete()
     await callback.answer()
 
 @router.callback_query(F.data == "close_menu")

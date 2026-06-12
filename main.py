@@ -1,8 +1,13 @@
 import asyncio
 import logging
 import sys
-from os import getenv
 from datetime import datetime
+
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
 
 # Configure standard streams for UTF-8 on Windows
 if sys.platform == "win32":
@@ -10,22 +15,15 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import BotCommand
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+# Import configuration
+from config import settings
 
 # Import all handlers
 from handlers import start, faq, reminders, ai_chat, weather, admin, callback, bot_manager  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
-    level=getenv("LOG_LEVEL", "INFO"),
+    level=settings.LOG_LEVEL,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(f'logs/bot_{datetime.now().strftime("%Y%m%d")}.log'),
@@ -33,12 +31,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-# Get configuration
-TOKEN = getenv("BOT_TOKEN")
-
-if not TOKEN:
-    raise ValueError("BOT_TOKEN is not set in environment variables")
 
 # Use Memory storage
 storage = MemoryStorage()
@@ -98,16 +90,14 @@ async def on_startup(bot: Bot, db=None):
             logger.error(f"Failed to connect to database or reschedule reminders: {e}")
     
     # Send notification to admins
-    admin_ids = getenv("ADMIN_IDS", "").split(",")
-    for admin_id in admin_ids:
-        if admin_id.strip():
-            try:
-                await bot.send_message(
-                    int(admin_id),
-                    f"✅ Bot started successfully at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                )
-            except Exception:
-                pass
+    for admin_id in settings.ADMIN_IDS:
+        try:
+            await bot.send_message(
+                admin_id,
+                f"✅ Bot started successfully at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+        except Exception:
+            pass
     
     logger.info("✨ Bot is ready to serve!")
 
@@ -124,32 +114,29 @@ async def on_shutdown(bot: Bot, db=None):
             logger.error(f"Error closing database pool: {e}")
             
     # Notify admins
-    admin_ids = getenv("ADMIN_IDS", "").split(",")
-    for admin_id in admin_ids:
-        if admin_id.strip():
-            try:
-                await bot.send_message(
-                    int(admin_id),
-                    f"⚠️ Bot is shutting down at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-                )
-            except Exception:
-                pass
+    for admin_id in settings.ADMIN_IDS:
+        try:
+            await bot.send_message(
+                admin_id,
+                f"⚠️ Bot is shutting down at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+        except Exception:
+            pass
     
     await bot.session.close()
     logger.info("✅ Bot shutdown complete")
 
 async def main():
     """Main function to run the bot"""
-    db_url = getenv("DB_URL")
     db = None
-    if db_url:
+    if settings.DB_URL:
         from database.models import Database
-        db = Database(db_url)
+        db = Database(settings.DB_URL)
         logger.info("Database URL found in environment variables.")
     else:
         logger.warning("DB_URL is not set in environment variables. Database functionality will use mock fallbacks.")
 
-    bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=storage)
     
     # Register startup/shutdown events

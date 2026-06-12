@@ -139,13 +139,18 @@ async def process_token_input(message: Message, state: FSMContext, db=None):
     
     # Regex validation for token format
     if not re.match(r"^\d+:[A-Za-z0-9_-]{30,50}$", token):
+        # Delete invalid token message immediately for privacy
+        try:
+            await message.delete()
+        except Exception:
+            pass
         await message.answer(
             "❌ Invalid token format. A valid token looks like <code>123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11</code>.\n\n"
             "Please try again or type /cancel."
         )
         return
     
-    await message.answer("🔄 Validating token with Telegram API...")
+    validation_status_msg = await message.answer("🔄 Validating token with Telegram API...")
     
     try:
         bot_info = await call_bot_api(token, "get_me")
@@ -159,7 +164,15 @@ async def process_token_input(message: Message, state: FSMContext, db=None):
             db=db
         )
         
+        # Delete user token message for security
+        try:
+            await message.delete()
+        except Exception:
+            pass
+            
+        await validation_status_msg.delete()
         await state.clear()
+        
         success_text = (
             f"<b>🎉 Success!</b>\n\n"
             f"Bot has been registered successfully.\n"
@@ -171,10 +184,25 @@ async def process_token_input(message: Message, state: FSMContext, db=None):
         await message.answer(success_text, reply_markup=get_main_keyboard(message.from_user.id), parse_mode="HTML")
         
     except Exception as e:
-        logger.error(f"Failed to validate bot token: {e}")
+        err_msg = str(e)
+        if token in err_msg:
+            err_msg = err_msg.replace(token, "[REDACTED_TOKEN]")
+        logger.error(f"Failed to validate bot token: {err_msg}")
+        
+        # Delete failed token message for security
+        try:
+            await message.delete()
+        except Exception:
+            pass
+            
+        try:
+            await validation_status_msg.delete()
+        except Exception:
+            pass
+            
         await message.answer(
             f"❌ Failed to connect to bot. Verification failed.\n"
-            f"Error details: <code>{str(e)}</code>\n\n"
+            f"Error details: <code>{err_msg}</code>\n\n"
             f"Please make sure the token is correct and not revoked, and try again."
         )
 
@@ -233,15 +261,6 @@ async def callback_list_back(callback: CallbackQuery, db=None):
     )
     await callback.answer()
 
-@router.callback_query(F.data == "bot_list_back")
-async def callback_bot_list_back(callback: CallbackQuery, db=None):
-    bots = await db_get_bots(callback.from_user.id, db)
-    await callback.message.edit_text(
-        "<b>🤖 Your Managed Bots</b>\n\nSelect a bot to configure settings:",
-        reply_markup=get_my_bots_keyboard(bots),
-        parse_mode="HTML"
-    )
-    await callback.answer()
 
 @router.callback_query(F.data.startswith("bot_delete_"))
 async def callback_delete_bot(callback: CallbackQuery, db=None):
@@ -273,8 +292,8 @@ async def callback_show_token(callback: CallbackQuery, db=None):
     
     token_text = (
         f"<b>🔑 Token for @{bot_data['username']}</b>\n\n"
-        f"<code>{bot_data['token']}</code>\n\n"
-        f"⚠️ <i>Do not share this token with anyone!</i>"
+        f"<tg-spoiler><code>{bot_data['token']}</code></tg-spoiler>\n\n"
+        f"⚠️ <i>Do not share this token with anyone! Tap the spoiler above to reveal the token.</i>"
     )
     
     await callback.message.answer(token_text, parse_mode="HTML")

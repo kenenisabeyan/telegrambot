@@ -4,7 +4,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 import aiohttp
-from os import getenv
+from config import settings
 
 router = Router()
 
@@ -12,7 +12,7 @@ router = Router()
 conversation_history = {}
 
 # OpenAI configuration (optional - will use mock if not available)
-OPENAI_API_KEY = getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = settings.OPENAI_API_KEY
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 class AIStates(StatesGroup):

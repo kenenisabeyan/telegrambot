@@ -27,17 +27,14 @@ def test_env_file_exists():
 
 def test_token_configured():
     """Test that token is configured"""
-    from dotenv import load_dotenv
-    
-    env_path = Path(__file__).parent.parent / ".env"
-    load_dotenv(env_path)
-    token = os.getenv("BOT_TOKEN")
+    from config import settings
+    token = settings.BOT_TOKEN
     
     # Check if token exists and is not the placeholder
     if token and token != "your_bot_token_from_botfather" and len(token) > 10:
         assert True
     else:
-        assert False, "BOT_TOKEN not configured correctly in .env file"
+        assert False, "BOT_TOKEN not configured correctly in config settings"
 
 def test_handlers_exist():
     """Test that all handler files exist"""
