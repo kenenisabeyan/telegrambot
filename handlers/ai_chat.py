@@ -103,6 +103,7 @@ def get_mock_response(prompt: str) -> str:
     )
 
 @router.message(Command("ai"))
+@router.message(F.text == "AI Chat")
 async def cmd_ai(message: Message, state: FSMContext, db=None):
     """Handle /ai command"""
     args = message.text.split(maxsplit=1)

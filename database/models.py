@@ -61,6 +61,21 @@ class Database:
                     used_at TIMESTAMP DEFAULT NOW()
                 )
             """)
+
+            # Managed bots table
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS managed_bots (
+                    id SERIAL PRIMARY KEY,
+                    owner_id BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+                    token VARCHAR(255) UNIQUE NOT NULL,
+                    bot_id BIGINT NOT NULL,
+                    username VARCHAR(255) NOT NULL,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    about_text TEXT,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
     
     async def add_user(self, user_id: int, username: str = None, 
                        first_name: str = None, last_name: str = None):
@@ -178,3 +193,63 @@ class Database:
                     SET status = $2
                     WHERE id = $1
                 """, reminder_id, status)
+
+    async def add_managed_bot(self, owner_id: int, token: str, bot_id: int, username: str, name: str):
+        """Add a bot to the managed list"""
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO managed_bots (owner_id, token, bot_id, username, name)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (token) DO UPDATE SET
+                    bot_id = EXCLUDED.bot_id,
+                    username = EXCLUDED.username,
+                    name = EXCLUDED.name
+            """, owner_id, token, bot_id, username, name)
+
+    async def get_user_managed_bots(self, owner_id: int) -> list:
+        """Get all managed bots for a user"""
+        async with self.pool.acquire() as conn:
+            records = await conn.fetch("""
+                SELECT id, owner_id, token, bot_id, username, name, description, about_text, created_at
+                FROM managed_bots
+                WHERE owner_id = $1
+                ORDER BY created_at DESC
+            """, owner_id)
+            return [dict(r) for r in records]
+
+    async def get_managed_bot(self, owner_id: int, bot_id: int) -> dict:
+        """Get managed bot details"""
+        async with self.pool.acquire() as conn:
+            record = await conn.fetchrow("""
+                SELECT id, owner_id, token, bot_id, username, name, description, about_text, created_at
+                FROM managed_bots
+                WHERE owner_id = $1 AND bot_id = $2
+            """, owner_id, bot_id)
+            return dict(record) if record else None
+
+    async def update_managed_bot_fields(self, owner_id: int, bot_id: int, **fields):
+        """Update fields of a managed bot (e.g. name, description, about_text)"""
+        if not fields:
+            return
+        
+        async with self.pool.acquire() as conn:
+            set_clauses = []
+            values = []
+            for i, (k, v) in enumerate(fields.items(), start=3):
+                set_clauses.append(f"{k} = ${i}")
+                values.append(v)
+            
+            query = f"""
+                UPDATE managed_bots
+                SET {", ".join(set_clauses)}
+                WHERE owner_id = $1 AND bot_id = $2
+            """
+            await conn.execute(query, owner_id, bot_id, *values)
+
+    async def delete_managed_bot(self, owner_id: int, bot_id: int):
+        """Delete a managed bot"""
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                DELETE FROM managed_bots
+                WHERE owner_id = $1 AND bot_id = $2
+            """, owner_id, bot_id)

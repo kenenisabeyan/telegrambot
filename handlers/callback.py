@@ -6,7 +6,7 @@ router = Router()
 
 async def save_feedback(user_id: int, feedback_text: str, db=None):
     """Save user feedback to database"""
-    print(f"📝 Feedback from user {user_id}: {feedback_text}")
+    print(f"Feedback from user {user_id}: {feedback_text}")
     
     if db:
         try:

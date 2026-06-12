@@ -4,6 +4,12 @@ import sys
 from os import getenv
 from datetime import datetime
 
+# Configure standard streams for UTF-8 on Windows
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -15,7 +21,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import all handlers
-from handlers import start, faq, reminders, ai_chat, weather, admin, callback  # noqa: E402
+from handlers import start, faq, reminders, ai_chat, weather, admin, callback, bot_manager  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -48,6 +54,14 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="remind", description="⏰ Set a reminder"),
         BotCommand(command="ai", description="🤖 Chat with AI"),
         BotCommand(command="weather", description="🌤 Get weather forecast"),
+        BotCommand(command="newbot", description="🤖 Register/add a new bot"),
+        BotCommand(command="mybots", description="📋 List and manage your bots"),
+        BotCommand(command="setname", description="✍️ Set bot display name"),
+        BotCommand(command="setdescription", description="📝 Set bot description"),
+        BotCommand(command="setabouttext", description="ℹ️ Set bot short description (about text)"),
+        BotCommand(command="setuserpic", description="🖼️ Set bot profile picture"),
+        BotCommand(command="setcommands", description="📜 Set bot command list"),
+        BotCommand(command="deletebot", description="❌ Delete a bot from the manager"),
         BotCommand(command="cancel", description="❌ Cancel current operation"),
         BotCommand(command="stats", description="📊 Bot statistics"),
         BotCommand(command="feedback", description="💬 Send feedback"),
@@ -150,6 +164,7 @@ async def main():
     dp.include_router(weather.router)
     dp.include_router(admin.router)
     dp.include_router(callback.router)
+    dp.include_router(bot_manager.router)
     
     # Start polling
     try:

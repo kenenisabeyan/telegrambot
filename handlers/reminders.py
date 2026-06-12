@@ -161,6 +161,7 @@ async def send_reminder(bot, chat_id: int, reminder_id, message_text: str, remin
             del user_reminders[reminder_id]
 
 @router.message(Command("remind"))
+@router.message(F.text == "Reminder")
 async def cmd_remind(message: Message, state: FSMContext, db=None):
     """Handle /remind command"""
     if db:

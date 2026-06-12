@@ -47,6 +47,7 @@ class FAQStates(StatesGroup):
     searching = State()
 
 @router.message(Command("faq"))
+@router.message(F.text == "FAQ")
 async def cmd_faq(message: Message, db=None):
     """Show FAQ categories"""
     if db:
