@@ -145,6 +145,7 @@ def get_wind_direction(degrees: int) -> str:
     return directions[index]
 
 @router.message(Command("weather"))
+@router.message(F.text == "Weather")
 async def cmd_weather(message: Message, state: FSMContext, db=None):
     """Handle /weather command"""
     if db:

@@ -55,7 +55,7 @@ async def cmd_start(message: Message, state: FSMContext, db=None):
     )
 
 @router.message(Command("help"))
-@router.message(F.text == "ℹ️ Help")
+@router.message(F.text == "Help")
 async def cmd_help(message: Message, db=None):
     """Handle /help command"""
     if db:
@@ -102,7 +102,7 @@ async def cmd_help(message: Message, db=None):
     await message.answer(help_text, reply_markup=get_main_keyboard(message.from_user.id))
 
 @router.message(Command("menu"))
-@router.message(F.text == "📋 Menu")
+@router.message(F.text == "Menu")
 async def cmd_menu(message: Message, db=None):
     """Show main menu"""
     if db:
@@ -112,7 +112,7 @@ async def cmd_menu(message: Message, db=None):
         reply_markup=get_main_keyboard(message.from_user.id)
     )
 
-@router.message(F.text == "❌ Cancel")
+@router.message(F.text == "Cancel")
 @router.message(Command("cancel"))
 async def cmd_cancel(message: Message, state: FSMContext, db=None):
     """Handle cancel button/command"""
@@ -132,7 +132,7 @@ async def cmd_cancel(message: Message, state: FSMContext, db=None):
         )
 
 @router.message(Command("stats"))
-@router.message(F.text == "📊 Stats")
+@router.message(F.text == "Stats")
 async def cmd_stats(message: Message, db=None):
     """Show user statistics"""
     if db:
@@ -172,7 +172,7 @@ async def cmd_stats(message: Message, db=None):
     await message.answer(stats_text, reply_markup=get_main_keyboard(message.from_user.id))
 
 @router.message(Command("feedback"))
-@router.message(F.text == "💬 Feedback")
+@router.message(F.text == "Feedback")
 async def cmd_feedback(message: Message, state: FSMContext, db=None):
     """Collect feedback from users"""
     if db:
