@@ -62,12 +62,14 @@ async def test_throttling_middleware():
 @pytest.mark.asyncio
 async def test_error_handling_middleware():
     """Test that error handling middleware catches exceptions and prevents crashes."""
+    from aiogram.types import Message
     middleware = ErrorHandlingMiddleware()
     
     async def failing_handler(event, data):
         raise RuntimeError("Something exploded with 7649497815:AAEJOWrChlrakVq5sY_mzaSOu70dSACAwRw")
     
-    mock_message = AsyncMock()
+    mock_message = MagicMock(spec=Message)
+    mock_message.answer = AsyncMock()
     mock_user = MagicMock(id=2002)
     data = {"event_from_user": mock_user}
     
