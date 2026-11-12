@@ -1,5 +1,11 @@
 import re
+import sys
+from pathlib import Path
 import pytest
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from handlers.bot_manager import (
     router,
     db_add_bot,
