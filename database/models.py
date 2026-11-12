@@ -1,20 +1,42 @@
+import logging
 from datetime import datetime
 import asyncpg
 
+logger = logging.getLogger(__name__)
+
 class Database:
-    """Database manager for PostgreSQL"""
+    """Enterprise Database manager for PostgreSQL with connection pooling & indexing"""
     
     def __init__(self, dsn: str):
         self.dsn = dsn
         self.pool = None
     
     async def connect(self):
-        """Create connection pool"""
-        self.pool = await asyncpg.create_pool(self.dsn)
+        """Create high-performance connection pool with auto-reconnect safeguards"""
+        logger.info("Initializing PostgreSQL connection pool...")
+        self.pool = await asyncpg.create_pool(
+            self.dsn,
+            min_size=2,
+            max_size=10,
+            command_timeout=15.0
+        )
         await self.create_tables()
+        logger.info("PostgreSQL connection pool established and verified.")
+    
+    async def is_healthy(self) -> bool:
+        """Check if database connection is alive and responsive"""
+        if not self.pool:
+            return False
+        try:
+            async with self.pool.acquire() as conn:
+                res = await conn.fetchval("SELECT 1")
+                return res == 1
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+            return False
     
     async def create_tables(self):
-        """Create all tables"""
+        """Create all tables and high-performance indexing"""
         async with self.pool.acquire() as conn:
             # Users table
             await conn.execute("""
@@ -27,7 +49,8 @@ class Database:
                     last_active TIMESTAMP,
                     is_premium BOOLEAN DEFAULT FALSE,
                     is_admin BOOLEAN DEFAULT FALSE
-                )
+                );
+                CREATE INDEX IF NOT EXISTS idx_users_last_active ON users(last_active);
             """)
             
             # Reminders table
@@ -39,7 +62,9 @@ class Database:
                     remind_time TIMESTAMP,
                     created_at TIMESTAMP DEFAULT NOW(),
                     status VARCHAR(50) DEFAULT 'active'
-                )
+                );
+                CREATE INDEX IF NOT EXISTS idx_reminders_status_time ON reminders(status, remind_time);
+                CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
             """)
             
             # Feedback table
@@ -49,7 +74,7 @@ class Database:
                     user_id BIGINT REFERENCES users(user_id),
                     message TEXT,
                     created_at TIMESTAMP DEFAULT NOW()
-                )
+                );
             """)
             
             # Usage stats table
@@ -59,7 +84,9 @@ class Database:
                     user_id BIGINT REFERENCES users(user_id),
                     command VARCHAR(100),
                     used_at TIMESTAMP DEFAULT NOW()
-                )
+                );
+                CREATE INDEX IF NOT EXISTS idx_usage_user_id ON usage_stats(user_id);
+                CREATE INDEX IF NOT EXISTS idx_usage_command ON usage_stats(command);
             """)
 
             # Managed bots table
@@ -74,12 +101,14 @@ class Database:
                     description TEXT,
                     about_text TEXT,
                     created_at TIMESTAMP DEFAULT NOW()
-                )
+                );
+                CREATE INDEX IF NOT EXISTS idx_managed_bots_owner ON managed_bots(owner_id);
+                CREATE INDEX IF NOT EXISTS idx_managed_bots_bot_id ON managed_bots(bot_id);
             """)
     
     async def add_user(self, user_id: int, username: str = None, 
                        first_name: str = None, last_name: str = None):
-        """Add or update user"""
+        """Add or update user profile & track last activity timestamp"""
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO users (user_id, username, first_name, last_name, last_active)
