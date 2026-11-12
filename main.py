@@ -18,23 +18,41 @@ if sys.platform == "win32":
 # Import configuration
 from config import settings
 
-# Import all handlers
-from handlers import start, faq, reminders, ai_chat, weather, admin, callback, bot_manager  # noqa: E402
+# Import handlers & setup router
+from handlers import setup_routers
+
+# Import enterprise middlewares
+from middlewares import (
+    ThrottlingMiddleware,
+    DatabaseMiddleware,
+    LoggingMiddleware,
+    ErrorHandlingMiddleware,
+)
 
 # Configure logging
 logging.basicConfig(
     level=settings.LOG_LEVEL,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(f'logs/bot_{datetime.now().strftime("%Y%m%d")}.log'),
+        logging.FileHandler(f'logs/bot_{datetime.now().strftime("%Y%m%d")}.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
 
-# Use Memory storage
-storage = MemoryStorage()
-logger.info("Using Memory storage")
+async def get_storage():
+    """Initialize Redis FSM storage with automated fallback to MemoryStorage."""
+    if settings.REDIS_URL:
+        try:
+            from aiogram.fsm.storage.redis import RedisStorage
+            storage = RedisStorage.from_url(settings.REDIS_URL)
+            logger.info("⚡ Using Redis FSM Storage")
+            return storage
+        except Exception as e:
+            logger.warning(f"Could not connect to Redis at {settings.REDIS_URL}: {e}. Falling back to MemoryStorage.")
+    
+    logger.info("💾 Using in-memory FSM storage")
+    return MemoryStorage()
 
 async def set_bot_commands(bot: Bot):
     """Set bot commands for menu"""
@@ -126,41 +144,126 @@ async def on_shutdown(bot: Bot, db=None):
     await bot.session.close()
     logger.info("✅ Bot shutdown complete")
 
+def register_middlewares(dp: Dispatcher, db=None):
+    """Register enterprise middleware pipeline on Dispatcher"""
+    # 1. Performance and request logging
+    dp.message.middleware(LoggingMiddleware())
+    dp.callback_query.middleware(LoggingMiddleware())
+
+    # 2. Global exception boundary and error sanitizer
+    dp.message.middleware(ErrorHandlingMiddleware())
+    dp.callback_query.middleware(ErrorHandlingMiddleware())
+
+    # 3. Anti-flood and throttling protection
+    throttling = ThrottlingMiddleware(
+        default_rate=settings.RATE_LIMIT_DEFAULT,
+        heavy_rate=settings.RATE_LIMIT_HEAVY
+    )
+    dp.message.middleware(throttling)
+    dp.callback_query.middleware(throttling)
+
+    # 4. Database session injection and auto user profile sync
+    if db:
+        db_mw = DatabaseMiddleware(db)
+        dp.message.middleware(db_mw)
+        dp.callback_query.middleware(db_mw)
+    
+    logger.info("Middlewares registered successfully.")
+
+async def start_webhook_server(bot: Bot, dp: Dispatcher, db=None):
+    """Launch production high-concurrency Aiohttp Webhook Server with health checks."""
+    from aiohttp import web
+    from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+
+    webhook_endpoint = f"{settings.WEBHOOK_URL.rstrip('/')}{settings.WEBHOOK_PATH}"
+    logger.info(f"Configuring webhook for {webhook_endpoint}")
+
+    async def webhook_startup(app: web.Application):
+        await on_startup(bot, db)
+        await bot.set_webhook(
+            url=webhook_endpoint,
+            secret_token=settings.WEBHOOK_SECRET,
+            allowed_updates=dp.resolve_used_update_types(),
+            drop_pending_updates=True
+        )
+        logger.info(f"Webhook registered successfully with Telegram API: {webhook_endpoint}")
+
+    async def webhook_shutdown(app: web.Application):
+        await bot.delete_webhook()
+        await on_shutdown(bot, db)
+        logger.info("Webhook deleted and resources cleaned up.")
+
+    async def health_endpoint(request: web.Request):
+        """Health check endpoint for Docker/Kubernetes container orchestration."""
+        is_healthy = await db.is_healthy() if db else True
+        status_payload = {
+            "status": "healthy" if is_healthy else "degraded",
+            "bot": "online",
+            "database": "connected" if (db and is_healthy) else ("mock" if not db else "error"),
+            "timestamp": datetime.now().isoformat()
+        }
+        return web.json_response(status_payload, status=200 if is_healthy else 503)
+
+    app = web.Application()
+    app.router.add_get("/health", health_endpoint)
+    app.on_startup.append(webhook_startup)
+    app.on_shutdown.append(webhook_shutdown)
+
+    SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
+        secret_token=settings.WEBHOOK_SECRET,
+        db=db
+    ).register(app, path=settings.WEBHOOK_PATH)
+
+    setup_application(app, dp, bot=bot, db=db)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host=settings.WEBAPP_HOST, port=settings.WEBAPP_PORT)
+    await site.start()
+    logger.info(f"🚀 Webhook server listening on http://{settings.WEBAPP_HOST}:{settings.WEBAPP_PORT}")
+
+    # Keep server running until cancelled
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await runner.cleanup()
+
 async def main():
-    """Main function to run the bot"""
+    """Main function to run the bot in polling or webhook mode"""
     db = None
     if settings.DB_URL:
         from database.models import Database
         db = Database(settings.DB_URL)
-        logger.info("Database URL found in environment variables.")
+        logger.info("Database URL detected in environment variables.")
     else:
-        logger.warning("DB_URL is not set in environment variables. Database functionality will use mock fallbacks.")
+        logger.warning("DB_URL is not set. Database functionality will operate in mock fallback mode.")
 
+    storage = await get_storage()
     bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=storage)
     
-    # Register startup/shutdown events
-    dp.startup.register(on_startup)
-    dp.shutdown.register(on_shutdown)
-    
-    # Include all routers
-    dp.include_router(start.router)
-    dp.include_router(faq.router)
-    dp.include_router(reminders.router)
-    dp.include_router(ai_chat.router)
-    dp.include_router(weather.router)
-    dp.include_router(admin.router)
-    dp.include_router(callback.router)
-    dp.include_router(bot_manager.router)
-    
-    # Start polling
-    try:
-        logger.info("🔄 Starting bot polling...")
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), db=db)
-    except Exception as e:
-        logger.error(f"❌ Error while polling: {e}")
-    finally:
-        await bot.session.close()
+    # Include master router
+    dp.include_router(setup_routers())
+
+    # Register enterprise middlewares
+    register_middlewares(dp, db=db)
+
+    # Choose execution mode: Webhook vs Polling
+    if settings.WEBHOOK_URL:
+        logger.info("Mode: Production Webhook Server")
+        await start_webhook_server(bot, dp, db)
+    else:
+        logger.info("Mode: Resilient Long Polling")
+        dp.startup.register(on_startup)
+        dp.shutdown.register(on_shutdown)
+        try:
+            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), db=db)
+        except Exception as e:
+            logger.error(f"❌ Error while polling: {e}")
+        finally:
+            await bot.session.close()
 
 if __name__ == "__main__":
     try:
