@@ -50,7 +50,10 @@ def get_bot_options_keyboard(bot_id: int):
                 InlineKeyboardButton(text="🔑 Get Token", callback_data=f"bot_show_token_{bot_id}")
             ],
             [
-                InlineKeyboardButton(text="❌ Delete Bot", callback_data=f"bot_delete_{bot_id}"),
+                InlineKeyboardButton(text="🔍 Diagnostics & Status", callback_data=f"bot_diag_{bot_id}"),
+                InlineKeyboardButton(text="❌ Delete Bot", callback_data=f"bot_delete_{bot_id}")
+            ],
+            [
                 InlineKeyboardButton(text="🔙 Back to List", callback_data=f"bot_list_back")
             ]
         ]

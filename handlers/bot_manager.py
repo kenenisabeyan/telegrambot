@@ -250,6 +250,55 @@ async def callback_select_bot(callback: CallbackQuery, db=None):
     await callback.message.edit_text(menu_text, reply_markup=get_bot_options_keyboard(bot_id), parse_mode="HTML")
     await callback.answer()
 
+@router.callback_query(F.data.startswith("bot_diag_"))
+async def callback_bot_diagnostics(callback: CallbackQuery, db=None):
+    bot_id = int(callback.data.split("_")[2])
+    bot_data = await db_get_bot(callback.from_user.id, bot_id, db)
+    if not bot_data:
+        await callback.answer("Bot not found!", show_alert=True)
+        return
+        
+    await callback.answer("Running diagnostics...", show_alert=False)
+    
+    try:
+        me = await call_bot_api(bot_data['token'], "get_me")
+        webhook_info = await call_bot_api(bot_data['token'], "get_webhook_info")
+        
+        has_webhook = bool(webhook_info.url)
+        mode = f"🌐 Webhook ({webhook_info.url})" if has_webhook else "🔄 Long Polling (Direct)"
+        pending_updates = webhook_info.pending_update_count
+        
+        diag_report = (
+            f"<b>🔍 Health & Diagnostics: @{me.username}</b>\n\n"
+            f"• <b>API Status:</b> 🟢 Healthy & Responsive\n"
+            f"• <b>Bot ID:</b> <code>{me.id}</code>\n"
+            f"• <b>Display Name:</b> {me.first_name}\n"
+            f"• <b>Delivery Mode:</b> {mode}\n"
+            f"• <b>Pending Updates:</b> {pending_updates}\n"
+            f"• <b>Can Join Groups:</b> {'✅ Yes' if me.can_join_groups else '❌ No'}\n"
+            f"• <b>Can Read Group Messages:</b> {'✅ Yes' if me.can_read_all_group_messages else '❌ Privacy Mode Enabled'}\n"
+            f"• <b>Inline Queries:</b> {'✅ Supported' if me.supports_inline_queries else '❌ Disabled'}\n"
+        )
+        if webhook_info.last_error_message:
+            diag_report += f"\n⚠️ <b>Last Delivery Error:</b> <code>{webhook_info.last_error_message}</code>\n"
+            
+    except Exception as e:
+        diag_report = (
+            f"<b>🔍 Health & Diagnostics: @{bot_data['username']}</b>\n\n"
+            f"• <b>API Status:</b> 🔴 Error connecting\n"
+            f"• <b>Details:</b> <code>{str(e)}</code>\n\n"
+            f"Check if token is valid or revoked in @BotFather."
+        )
+        
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    back_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Re-run Diagnostics", callback_data=f"bot_diag_{bot_id}")],
+            [InlineKeyboardButton(text="🔙 Back to Bot", callback_data=f"bot_select_{bot_id}")]
+        ]
+    )
+    await callback.message.edit_text(diag_report, reply_markup=back_kb, parse_mode="HTML")
+
 @router.callback_query(F.data == "bot_list_back")
 @router.callback_query(F.data == "bot_edit_back")
 async def callback_list_back(callback: CallbackQuery, db=None):
