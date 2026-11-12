@@ -414,6 +414,7 @@ async def callback_edit_property(callback: CallbackQuery, state: FSMContext, db=
 @router.message(BotManagerStates.waiting_for_name)
 async def process_name_input(message: Message, state: FSMContext, db=None):
     data = await state.get_data()
+    bot_id = data.get("managing_bot_id")
     token = data.get("managing_bot_token")
     new_name = message.text.strip()
     
@@ -429,6 +430,7 @@ async def process_name_input(message: Message, state: FSMContext, db=None):
 @router.message(BotManagerStates.waiting_for_description)
 async def process_desc_input(message: Message, state: FSMContext, db=None):
     data = await state.get_data()
+    bot_id = data.get("managing_bot_id")
     token = data.get("managing_bot_token")
     new_desc = message.text.strip()
     
@@ -444,6 +446,7 @@ async def process_desc_input(message: Message, state: FSMContext, db=None):
 @router.message(BotManagerStates.waiting_for_about_text)
 async def process_about_input(message: Message, state: FSMContext, db=None):
     data = await state.get_data()
+    bot_id = data.get("managing_bot_id")
     token = data.get("managing_bot_token")
     new_about = message.text.strip()
     
