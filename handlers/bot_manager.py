@@ -462,7 +462,6 @@ async def process_about_input(message: Message, state: FSMContext, db=None):
 @router.message(BotManagerStates.waiting_for_commands)
 async def process_cmds_input(message: Message, state: FSMContext, db=None):
     data = await state.get_data()
-    bot_id = data.get("managing_bot_id")
     token = data.get("managing_bot_token")
     lines = message.text.strip().split("\n")
     
