@@ -1,5 +1,4 @@
 import sys
-import time
 from pathlib import Path
 import pytest
 from unittest.mock import AsyncMock, MagicMock
@@ -11,7 +10,6 @@ from middlewares.throttling import ThrottlingMiddleware
 from middlewares.database import DatabaseMiddleware
 from middlewares.error import ErrorHandlingMiddleware, sanitize_sensitive_data
 from handlers import setup_routers
-from config import settings
 
 def test_sanitize_sensitive_data():
     """Test that sensitive tokens, keys, and credentials are redacted."""
