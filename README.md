@@ -215,6 +215,7 @@ telegrambot/
 │   ├── bot_manager.py       # BotFather clone (token registration & profile editor)
 │   ├── callback.py          # Central navigation callbacks & inline queries
 │   ├── faq.py               # Categorized FAQ search and display
+│   ├── inline.py            # Global inline query engine (@bot queries)
 │   ├── reminders.py         # Natural language reminder parser & background scheduler
 │   ├── start.py             # User onboarding, deep-linking & usage tracking
 │   └── weather.py           # Weather metrics and 5-day predictive forecasts
@@ -258,6 +259,8 @@ telegrambot/
 | `/ai` | `AI Chat` | Start an interactive conversation with the AI assistant |
 | `/weather` | `Weather` | Get current weather or 5-day forecast for any city |
 | `/stats` | `Stats` | View personal usage metrics and commands executed |
+| `/profile` | — | Display personal account details and change timezone |
+| `/referral` | — | View referral statistics and share invitation link |
 | `/feedback` | `Feedback` | Submit comments or issue reports directly to administrators |
 | `/cancel` | `Cancel` | Cancel any active FSM dialogue or multi-step wizard |
 
