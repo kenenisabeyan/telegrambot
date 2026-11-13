@@ -72,6 +72,38 @@ async def admin_stats(callback: CallbackQuery, db=None):
     await callback.message.edit_text(stats_text, reply_markup=get_admin_keyboard(), parse_mode="HTML")
     await callback.answer()
 
+@router.callback_query(F.data == "admin_telemetry")
+async def callback_admin_telemetry(callback: CallbackQuery):
+    """Display real-time performance and telemetry metrics"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Access denied!", show_alert=True)
+        return
+
+    from utils.telemetry import telemetry
+    m = telemetry.get_metrics_snapshot()
+    
+    telemetry_text = (
+        "<b>📈 Real-Time Engine Telemetry</b>\n\n"
+        f"• <b>Uptime:</b> <code>{m['uptime']}</code>\n"
+        f"• <b>Total Updates Handled:</b> <code>{m['total_updates']}</code>\n"
+        f"• <b>Error Boundary Events:</b> <code>{m['total_errors']}</code>\n"
+        f"• <b>Average Latency:</b> <code>{m['avg_latency_ms']} ms</code>\n"
+        f"• <b>P95 Latency:</b> <code>{m['p95_latency_ms']} ms</code>\n"
+        f"• <b>Process RSS Memory:</b> <code>{m['memory_rss_mb']} MB</code>\n"
+        f"• <b>Python Version:</b> <code>{m['python_version']}</code>\n"
+        f"• <b>Platform OS:</b> <code>{m['platform']}</code>\n\n"
+        f"<i>Snapshot at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>"
+    )
+
+    back_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Refresh Metrics", callback_data="admin_telemetry")],
+            [InlineKeyboardButton(text="🔙 Admin Panel", callback_data="admin_panel_back")]
+        ]
+    )
+    await callback.message.edit_text(telemetry_text, reply_markup=back_kb, parse_mode="HTML")
+    await callback.answer()
+
 @router.callback_query(F.data == "admin_broadcast")
 async def admin_broadcast(callback: CallbackQuery, state: FSMContext):
     """Start broadcast process"""

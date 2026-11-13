@@ -67,7 +67,10 @@ def get_admin_keyboard():
     """Admin panel keyboard"""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📊 Bot Stats", callback_data="admin_stats")],
+            [
+                InlineKeyboardButton(text="📊 Bot Stats", callback_data="admin_stats"),
+                InlineKeyboardButton(text="📈 Telemetry", callback_data="admin_telemetry")
+            ],
             [InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast")],
             [InlineKeyboardButton(text="👥 Users", callback_data="admin_users")],
             [InlineKeyboardButton(text="📝 Logs", callback_data="admin_logs")],
