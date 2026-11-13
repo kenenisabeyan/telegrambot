@@ -8,6 +8,7 @@ from . import weather
 from . import admin
 from . import callback
 from . import bot_manager
+from . import inline
 
 def setup_routers() -> Router:
     """Master router consolidating all domain handlers in priority order."""
@@ -20,6 +21,7 @@ def setup_routers() -> Router:
     root_router.include_router(admin.router)
     root_router.include_router(callback.router)
     root_router.include_router(bot_manager.router)
+    root_router.include_router(inline.router)
     return root_router
 
 __all__ = [
@@ -31,5 +33,6 @@ __all__ = [
     'admin',
     'callback',
     'bot_manager',
+    'inline',
     'setup_routers',
 ]

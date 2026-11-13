@@ -29,6 +29,12 @@ async def cmd_start(message: Message, state: FSMContext, db=None):
             first_name=message.from_user.first_name,
             last_name=message.from_user.last_name
         )
+        if _referrer and _referrer.startswith("ref_"):
+            try:
+                ref_id = int(_referrer.replace("ref_", ""))
+                await db.set_user_referrer(message.from_user.id, ref_id)
+            except Exception:
+                pass
         await db.log_command(message.from_user.id, "start")
     
     welcome_text = (
@@ -201,3 +207,109 @@ async def handle_feedback(message: Message, state: FSMContext, db=None):
         reply_markup=get_main_keyboard(message.from_user.id),
         parse_mode="HTML"
     )
+
+@router.message(Command("profile"))
+async def cmd_profile(message: Message, db=None):
+    """View personal profile details and timezone"""
+    if db:
+        await db.log_command(message.from_user.id, "profile")
+        stats = await db.get_user_stats(message.from_user.id)
+        tz = await db.get_user_timezone(message.from_user.id)
+    else:
+        stats = {
+            "joined_at": datetime.now(),
+            "commands_count": 5,
+            "reminders_count": 1,
+            "ai_count": 2,
+            "weather_count": 2
+        }
+        tz = "UTC"
+
+    from config import settings
+    role = "👑 Administrator" if message.from_user.id in settings.ADMIN_IDS else "👤 Standard Member"
+    username = f"@{message.from_user.username}" if message.from_user.username else "None"
+    
+    profile_text = (
+        "<b>👤 Your Profile & Identity</b>\n\n"
+        f"• <b>Full Name:</b> {message.from_user.full_name}\n"
+        f"• <b>Username:</b> {username}\n"
+        f"• <b>Telegram ID:</b> <code>{message.from_user.id}</code>\n"
+        f"• <b>Role:</b> {role}\n"
+        f"• <b>Configured Timezone:</b> <code>{tz}</code>\n"
+        f"• <b>Commands Used:</b> {stats['commands_count']}\n"
+        f"• <b>Member Since:</b> {stats['joined_at'].strftime('%Y-%m-%d')}\n"
+    )
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌐 Change Timezone", callback_data="profile_change_tz")],
+            [InlineKeyboardButton(text="🎁 My Referral Link", callback_data="profile_referral")]
+        ]
+    )
+    await message.answer(profile_text, reply_markup=kb, parse_mode="HTML")
+
+@router.message(Command("referral"))
+async def cmd_referral(message: Message, db=None):
+    """Generate and display user referral link & statistics"""
+    if db:
+        await db.log_command(message.from_user.id, "referral")
+        stats = await db.get_referral_stats(message.from_user.id)
+    else:
+        stats = {"total_referrals": 0}
+        
+    me = await message.bot.get_me()
+    referral_link = f"https://t.me/{me.username}?start=ref_{message.from_user.id}"
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    share_url = f"https://t.me/share/url?url={referral_link}&text=Check%20out%20this%20awesome%20Enterprise%20Telegram%20Bot!"
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🚀 Share Referral Link", url=share_url)]
+        ]
+    )
+    
+    ref_text = (
+        "<b>🎁 Referral Program</b>\n\n"
+        f"Invite friends to use the bot and earn premium capabilities!\n\n"
+        f"• <b>Your Referral Link:</b>\n<code>{referral_link}</code>\n\n"
+        f"• <b>Total Friends Invited:</b> {stats['total_referrals']}\n\n"
+        f"<i>Share your link directly with colleagues or in group chats!</i>"
+    )
+    await message.answer(ref_text, reply_markup=kb, parse_mode="HTML")
+
+@router.callback_query(F.data == "profile_change_tz")
+async def callback_change_tz(callback: CallbackQuery, db=None):
+    tzs = ["UTC", "EST", "CET", "EAT", "IST", "PST"]
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=tzs[0], callback_data=f"profile_set_tz_{tzs[0]}"),
+                InlineKeyboardButton(text=tzs[1], callback_data=f"profile_set_tz_{tzs[1]}"),
+            ],
+            [
+                InlineKeyboardButton(text=tzs[2], callback_data=f"profile_set_tz_{tzs[2]}"),
+                InlineKeyboardButton(text=tzs[3], callback_data=f"profile_set_tz_{tzs[3]}"),
+            ],
+            [
+                InlineKeyboardButton(text=tzs[4], callback_data=f"profile_set_tz_{tzs[4]}"),
+                InlineKeyboardButton(text=tzs[5], callback_data=f"profile_set_tz_{tzs[5]}"),
+            ]
+        ]
+    )
+    await callback.message.edit_text("<b>🌐 Select Your Preferred Timezone:</b>", reply_markup=kb, parse_mode="HTML")
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("profile_set_tz_"))
+async def callback_set_tz(callback: CallbackQuery, db=None):
+    tz = callback.data.replace("profile_set_tz_", "")
+    if db:
+        await db.set_user_timezone(callback.from_user.id, tz)
+    await callback.answer(f"✅ Timezone set to {tz}!", show_alert=True)
+    await cmd_profile(callback.message, db=db)
+
+@router.callback_query(F.data == "profile_referral")
+async def callback_profile_referral(callback: CallbackQuery, db=None):
+    await cmd_referral(callback.message, db=db)
+    await callback.answer()

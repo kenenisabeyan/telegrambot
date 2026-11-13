@@ -120,3 +120,35 @@ def test_admin_is_admin_check():
     # If admin ids configured, first should be admin
     if settings.ADMIN_IDS:
         assert is_admin(settings.ADMIN_IDS[0]) is True
+
+def test_inline_query_id_generator():
+    """Test inline deterministic ID generator"""
+    from handlers.inline import make_result_id
+    id1 = make_result_id("query1")
+    id2 = make_result_id("query1")
+    id3 = make_result_id("query2")
+    assert id1 == id2
+    assert id1 != id3
+    assert len(id1) == 32
+
+@pytest.mark.asyncio
+async def test_inline_query_response():
+    """Test inline query handler returns results"""
+    from handlers.inline import inline_query_handler
+    from aiogram.types import InlineQuery
+    
+    mock_bot = MagicMock()
+    mock_bot_user = MagicMock()
+    mock_bot_user.username = "test_enterprise_bot"
+    mock_bot.get_me = AsyncMock(return_value=mock_bot_user)
+    
+    mock_query = MagicMock(spec=InlineQuery)
+    mock_query.bot = mock_bot
+    mock_query.query = "faq"
+    mock_query.from_user = MagicMock(id=5005)
+    mock_query.answer = AsyncMock()
+    
+    await inline_query_handler(mock_query, db=None)
+    assert mock_query.answer.called
+    called_args = mock_query.answer.call_args[0][0]
+    assert len(called_args) > 0

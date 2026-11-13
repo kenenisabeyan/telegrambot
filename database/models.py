@@ -48,9 +48,14 @@ class Database:
                     joined_at TIMESTAMP DEFAULT NOW(),
                     last_active TIMESTAMP,
                     is_premium BOOLEAN DEFAULT FALSE,
-                    is_admin BOOLEAN DEFAULT FALSE
+                    is_admin BOOLEAN DEFAULT FALSE,
+                    timezone VARCHAR(50) DEFAULT 'UTC',
+                    referred_by BIGINT
                 );
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC';
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by BIGINT;
                 CREATE INDEX IF NOT EXISTS idx_users_last_active ON users(last_active);
+                CREATE INDEX IF NOT EXISTS idx_users_referred_by ON users(referred_by);
             """)
             
             # Reminders table
@@ -310,3 +315,31 @@ class Database:
                 ORDER BY remind_time ASC
             """, user_id)
             return [dict(r) for r in records]
+
+    async def set_user_timezone(self, user_id: int, timezone: str):
+        """Set timezone preference for user"""
+        async with self.pool.acquire() as conn:
+            await conn.execute("UPDATE users SET timezone = $2 WHERE user_id = $1", user_id, timezone)
+
+    async def get_user_timezone(self, user_id: int) -> str:
+        """Get timezone preference for user (default UTC)"""
+        async with self.pool.acquire() as conn:
+            tz = await conn.fetchval("SELECT timezone FROM users WHERE user_id = $1", user_id)
+            return tz or "UTC"
+
+    async def set_user_referrer(self, user_id: int, referrer_id: int):
+        """Record who referred this user"""
+        if user_id == referrer_id:
+            return
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                UPDATE users
+                SET referred_by = $2
+                WHERE user_id = $1 AND referred_by IS NULL
+            """, user_id, referrer_id)
+
+    async def get_referral_stats(self, user_id: int) -> dict:
+        """Get total referrals count for user"""
+        async with self.pool.acquire() as conn:
+            count = await conn.fetchval("SELECT COUNT(*) FROM users WHERE referred_by = $1", user_id)
+            return {"total_referrals": count or 0}
