@@ -116,6 +116,8 @@ flowchart TD
   - ℹ️ **About Text / Short Bio** (`setMyShortDescription`)
   - 📜 **Commands Directory** (`setMyCommands`) with formatted multi-line parsing
   - 🖼️ **Profile Picture Avatar** (`setMyProfilePhoto`) via direct image upload
+- **📜 Live Command Directory Inspector**: Query and review all active commands currently registered on the managed bot via `getMyCommands`.
+- **🔔 Live Connection Ping**: Dispatch a live end-to-end verification ping from the managed bot directly to the owner to verify dispatch privileges.
 - **🔍 Automated Health & Delivery Diagnostics**: Inspect live bot health in one click:
   - Real-time API reachability
   - Delivery mode (`Webhook` with URL vs `Long Polling`)
@@ -142,19 +144,25 @@ flowchart TD
 
 ### 5. Smart Reminders Engine
 - **Natural Language Parsing**: Recognizes relative and shorthand time phrases (e.g., `in 15 minutes`, `2 hours`, `tomorrow at 9am`, `3d`).
+- **Interactive Reminders Directory**: Review active scheduled tasks via `/reminders` or `/myreminders` with instant cancellation buttons.
 - **Interactive Inline Actions**: Delivered reminders feature interactive inline action buttons:
   - ✅ **Mark Done**: Dismisses the reminder and logs task completion.
-  - ⏰ **Snooze**: Reschedules notifications for later follow-up (+10 min, +1 hour).
+  - ⏰ **Snooze**: Reschedules notifications for later follow-up (+5 min, +10 min).
   - ❌ **Delete**: Purges the reminder from database storage.
 - **Persistent Reboot Recovery**: When the bot server starts, active reminders stored in PostgreSQL are automatically recovered and rescheduled into asyncio background tasks.
 
-### 6. Conversational AI Assistant
+### 6. Conversational AI Assistant & Persona Engine
 - **Context-Aware Dialogue**: Powered by OpenAI's `gpt-3.5-turbo` with stateful FSM chat memory.
-- **Graceful Fallback Mode**: If `OPENAI_API_KEY` is not configured, the bot automatically switches to an informative mock intelligence responder to preserve user experience during offline evaluation.
+- **🎭 Multi-Persona Switching**: Switch between specialized personas on the fly:
+  - 🧑‍💼 **Productivity Assistant**: Structured, friendly, and comprehensive.
+  - 💻 **Senior Software Engineer**: Clean, typed, idiomatic code with error handling.
+  - ⚡ **Ultra-Concise Executive**: Direct bullet points, zero filler.
+- **Graceful Fallback Mode**: If `OPENAI_API_KEY` is not configured, the bot automatically switches to an informative mock intelligence responder tailored to the active persona.
 
 ### 7. Live Weather & Forecasts
 - **Current Conditions**: Real-time temperature, humidity, atmospheric pressure, and wind speed via OpenWeatherMap API.
 - **5-Day Extended Projections**: Formatted weather outlook cards with weather emojis.
+- **⚡ Quick-Tap World Cities**: One-click weather cards for London, New York, Tokyo, and Dubai.
 - **Flexible Location Input**: Accepts city name queries (`/weather Tokyo`) or Telegram location pin shares.
 
 ### 8. Interactive FAQ Database
@@ -164,8 +172,9 @@ flowchart TD
 ### 9. Enterprise Administration & Broadcast
 - **Role-Based Access Control**: Strict access verification via `ADMIN_IDS` configuration.
 - **Real-Time Analytics Dashboard**: Tracks total onboarded users, daily active users (DAU), command invocation frequency, and service loads.
-- **Mass Broadcast Engine**: Dispatch formatted announcements (HTML/Markdown) to all active users with error containment for blocked/inactive chats.
-- **Audit Logs**: Inspect runtime log files directly within Telegram chat sessions.
+- **Mass Broadcast Engine**: Real-time dispatcher iterating across all registered database users with delivery and failure metrics.
+- **Audit Logs Inspector**: View the last 20 runtime log entries with formatting and live refresh.
+- **System Environment Inspector**: Review active runtime configuration, modes, and database connection pools.
 
 ### 10. Resilient Multi-Tier Storage with Auto-Indexing
 - **PostgreSQL Connection Pool**: High-speed, connection-pooled execution using `asyncpg`.
