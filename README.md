@@ -7,7 +7,7 @@
 [![FSM Storage](https://img.shields.io/badge/FSM-Redis%20%7C%20Memory-DC382D.svg?style=flat-square&logo=redis&logoColor=white)](https://redis.io/)
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 [![Linter](https://img.shields.io/badge/linter-ruff-orange.svg?style=flat-square)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-16%20passed-brightgreen.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-18%20passed-brightgreen.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 
 > **A high-performance, asynchronous Telegram bot platform built with aiogram v3, asyncpg, Redis, and PostgreSQL.**  
@@ -180,6 +180,19 @@ flowchart TD
 - **PostgreSQL Connection Pool**: High-speed, connection-pooled execution using `asyncpg`.
 - **Automatic High-Performance Indexes**: Indexes created on startup for `users(last_active)`, `reminders(status, remind_time)`, `usage_stats(user_id, command)`, and `managed_bots(owner_id)`.
 - **Zero-Setup In-Memory Mode**: If `DB_URL` is omitted, the bot initializes an in-memory fallback layer, allowing instant testing without database setup.
+
+### 11. Global Inline Mode Engine
+- **Any-Chat Accessibility**: Use the bot from inside any group, channel, or direct message by typing `@your_bot_username [query]`.
+- **Instant Search Cards**:
+  - `faq [query]`: Searches categorized FAQs and delivers shareable answer articles.
+  - `weather [city]`: Renders real-time weather cards with temperatures and conditions.
+  - `ai [prompt]`: Generates inline AI completions and code snippets.
+  - `share`: Creates an interactive invitation card.
+
+### 12. User Profiles, Timezones & Referral Program
+- **Personal Identity Dashboard (`/profile`)**: Displays membership rank, registration age, commands count, and current timezone.
+- **Configurable Timezones**: Select from world timezones (`UTC`, `EST`, `CET`, `EAT`, `IST`, `PST`) so reminder triggers always match local schedules.
+- **Deep-Linked Referral System (`/referral`)**: Unique shareable invite links (`https://t.me/<bot>?start=ref_<id>`) with automated referral crediting.
 
 ---
 
