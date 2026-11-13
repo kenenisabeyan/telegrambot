@@ -7,7 +7,7 @@
 [![FSM Storage](https://img.shields.io/badge/FSM-Redis%20%7C%20Memory-DC382D.svg?style=flat-square&logo=redis&logoColor=white)](https://redis.io/)
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 [![Linter](https://img.shields.io/badge/linter-ruff-orange.svg?style=flat-square)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-13%20passed-brightgreen.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-16%20passed-brightgreen.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 
 > **A high-performance, asynchronous Telegram bot platform built with aiogram v3, asyncpg, Redis, and PostgreSQL.**  

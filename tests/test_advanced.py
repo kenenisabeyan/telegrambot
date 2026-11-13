@@ -92,3 +92,31 @@ async def test_database_middleware_sync():
     assert result == "HANDLED"
     assert data["db"] == mock_db
     assert mock_db.add_user.called
+
+def test_ai_persona_response():
+    """Test AI mock response adapts to persona"""
+    from handlers.ai_chat import get_mock_response
+    concise_resp = get_mock_response("How to sort list", persona="concise")
+    assert "•" in concise_resp
+    
+    coder_resp = get_mock_response("Write python class", persona="coder")
+    assert "```python" in coder_resp
+
+def test_bot_options_keyboard_has_new_features():
+    """Test options keyboard includes view commands and test ping buttons"""
+    from utils.keyboards import get_bot_options_keyboard
+    kb = get_bot_options_keyboard(123456)
+    all_callbacks = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "bot_view_cmds_123456" in all_callbacks
+    assert "bot_ping_123456" in all_callbacks
+    assert "bot_diag_123456" in all_callbacks
+
+def test_admin_is_admin_check():
+    """Test admin verification logic"""
+    from handlers.admin import is_admin
+    from config import settings
+    # Test with non-admin
+    assert is_admin(-9999) is False
+    # If admin ids configured, first should be admin
+    if settings.ADMIN_IDS:
+        assert is_admin(settings.ADMIN_IDS[0]) is True
