@@ -152,3 +152,42 @@ async def test_inline_query_response():
     assert mock_query.answer.called
     called_args = mock_query.answer.call_args[0][0]
     assert len(called_args) > 0
+
+def test_telemetry_collector_metrics():
+    """Test telemetry records updates, errors, latencies, and uptime"""
+    from utils.telemetry import TelemetryCollector
+    tel = TelemetryCollector()
+    tel.record_update(12.5, command="/help")
+    tel.record_update(25.0, command="/ai")
+    tel.record_error()
+    
+    snapshot = tel.get_metrics_snapshot()
+    assert snapshot["total_updates"] == 2
+    assert snapshot["total_errors"] == 1
+    assert snapshot["avg_latency_ms"] > 0
+    assert "uptime" in snapshot
+    assert "memory_rss_mb" in snapshot
+
+def test_parse_daily_datetime():
+    """Test natural parsing of recurring daily expressions"""
+    from handlers.reminders import parse_datetime
+    from datetime import datetime
+    dt = parse_datetime("every day at 9am")
+    assert dt is not None
+    assert dt.hour == 9
+    assert dt.minute == 0
+    assert dt > datetime.now()
+
+def test_bot_options_has_webhook_reset():
+    """Test bot options keyboard contains reset webhook button"""
+    from utils.keyboards import get_bot_options_keyboard
+    kb = get_bot_options_keyboard(998877)
+    callbacks = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "bot_reset_webhook_998877" in callbacks
+
+def test_admin_keyboard_telemetry_button():
+    """Test admin keyboard contains telemetry button"""
+    from utils.keyboards import get_admin_keyboard
+    kb = get_admin_keyboard()
+    callbacks = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "admin_telemetry" in callbacks

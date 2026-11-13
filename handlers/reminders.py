@@ -64,6 +64,22 @@ def parse_datetime(text: str) -> datetime | None:
     """Parse absolute datetime expressions"""
     text = text.lower()
     
+    # Daily / every day at time
+    daily_match = re.search(r'(?:daily|every day) at (\d{1,2})(?::(\d{2}))?\s*(am|pm)?', text)
+    if daily_match:
+        hour = int(daily_match.group(1))
+        minute = int(daily_match.group(2)) if daily_match.group(2) else 0
+        ampm = daily_match.group(3)
+        if ampm == 'pm' and hour != 12:
+            hour += 12
+        elif ampm == 'am' and hour == 12:
+            hour = 0
+        now = datetime.now()
+        reminder_time = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if reminder_time <= now:
+            reminder_time += timedelta(days=1)
+        return reminder_time
+
     # Today at time
     today_match = re.search(r'today at (\d{1,2})(?::(\d{2}))?\s*(am|pm)?', text)
     if today_match:
