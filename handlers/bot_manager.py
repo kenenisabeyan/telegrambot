@@ -299,6 +299,77 @@ async def callback_bot_diagnostics(callback: CallbackQuery, db=None):
     )
     await callback.message.edit_text(diag_report, reply_markup=back_kb, parse_mode="HTML")
 
+@router.callback_query(F.data.startswith("bot_view_cmds_"))
+async def callback_bot_view_commands(callback: CallbackQuery, db=None):
+    """Inspect existing commands list for a managed bot"""
+    bot_id = int(callback.data.split("_")[3])
+    bot_data = await db_get_bot(callback.from_user.id, bot_id, db)
+    if not bot_data:
+        await callback.answer("Bot not found!", show_alert=True)
+        return
+        
+    await callback.answer("Fetching commands...", show_alert=False)
+    
+    try:
+        commands = await call_bot_api(bot_data['token'], "get_my_commands")
+        if not commands:
+            cmd_text = (
+                f"<b>📜 Registered Commands: @{bot_data['username']}</b>\n\n"
+                f"<i>No custom commands have been configured on this bot yet.</i>\n\n"
+                f"Use the <b>Edit Commands</b> button to define commands (e.g. <code>start - Start bot</code>)."
+            )
+        else:
+            cmd_list_str = "\n".join([f"• <code>/{c.command}</code> - {c.description}" for c in commands])
+            cmd_text = (
+                f"<b>📜 Registered Commands: @{bot_data['username']}</b>\n\n"
+                f"{cmd_list_str}\n\n"
+                f"<i>Total commands configured: {len(commands)}</i>"
+            )
+    except Exception as e:
+        cmd_text = f"❌ Error retrieving commands from Telegram API: <code>{str(e)}</code>"
+        
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    back_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✍️ Edit Commands", callback_data=f"bot_edit_cmds_{bot_id}")],
+            [InlineKeyboardButton(text="🔙 Back to Bot", callback_data=f"bot_select_{bot_id}")]
+        ]
+    )
+    await callback.message.edit_text(cmd_text, reply_markup=back_kb, parse_mode="HTML")
+
+@router.callback_query(F.data.startswith("bot_ping_"))
+async def callback_bot_ping(callback: CallbackQuery, db=None):
+    """Send live test verification message from managed bot to user"""
+    from datetime import datetime
+    bot_id = int(callback.data.split("_")[2])
+    bot_data = await db_get_bot(callback.from_user.id, bot_id, db)
+    if not bot_data:
+        await callback.answer("Bot not found!", show_alert=True)
+        return
+        
+    await callback.answer("Sending test ping...", show_alert=False)
+    
+    ping_message = (
+        f"🔔 <b>Connection Ping Verified!</b>\n\n"
+        f"Hello from <b>@{bot_data['username']}</b>!\n"
+        f"This confirms that your bot token is active, responsive, and able to dispatch messages.\n\n"
+        f"<i>Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>"
+    )
+    
+    try:
+        await call_bot_api(bot_data['token'], "send_message", chat_id=callback.from_user.id, text=ping_message)
+        await callback.message.answer(
+            f"✅ <b>Ping Dispatched!</b>\nCheck your direct chat with @{bot_data['username']}.",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await callback.message.answer(
+            f"❌ <b>Ping Failed!</b>\n\n"
+            f"Telegram API response: <code>{str(e)}</code>\n\n"
+            f"<i>Tip: If you haven't opened a private chat and clicked /start on @{bot_data['username']}, Telegram blocks bots from initiating contact with users first.</i>",
+            parse_mode="HTML"
+        )
+
 @router.callback_query(F.data == "bot_list_back")
 @router.callback_query(F.data == "bot_edit_back")
 async def callback_list_back(callback: CallbackQuery, db=None):

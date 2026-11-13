@@ -406,24 +406,20 @@ async def reminder_delete(callback: CallbackQuery, db=None):
             await callback.answer("Reminder already processed!")
 
 @router.message(Command("list_reminders"))
+@router.message(Command("myreminders"))
+@router.message(Command("reminders"))
 async def list_reminders(message: Message, db=None):
-    """List all active reminders for user"""
+    """List all active reminders for user with interactive deletion buttons"""
     if db:
         try:
-            async with db.pool.acquire() as conn:
-                records = await conn.fetch("""
-                    SELECT id, message, remind_time, created_at
-                    FROM reminders
-                    WHERE user_id = $1 AND status = 'active' AND remind_time > NOW()
-                    ORDER BY remind_time ASC
-                """, message.from_user.id)
-                user_reminder_list = [
-                    (r['id'], {
-                        "message": r['message'],
-                        "time": r['remind_time'],
-                        "created_at": r['created_at']
-                    }) for r in records
-                ]
+            records = await db.get_user_reminders(message.from_user.id)
+            user_reminder_list = [
+                (r['id'], {
+                    "message": r['message'],
+                    "time": r['remind_time'],
+                    "created_at": r['created_at']
+                }) for r in records
+            ]
         except Exception as e:
             print(f"Error fetching reminders: {e}")
             user_reminder_list = []
@@ -434,15 +430,23 @@ async def list_reminders(message: Message, db=None):
         ]
     
     if not user_reminder_list:
-        await message.answer("📭 You have no active reminders.")
+        await message.answer(
+            "📭 You have no active reminders.\n\n"
+            "Use <code>/remind 10m Call client</code> or send <b>Reminder</b> to create one!",
+            parse_mode="HTML"
+        )
         return
     
     reminder_text = "<b>📋 Your Active Reminders:</b>\n\n"
+    keyboard_buttons = []
     for i, (rid, reminder) in enumerate(user_reminder_list, 1):
         reminder_text += (
-            f"{i}. <b>{reminder['message']}</b>\n"
-            f"   🕐 {reminder['time'].strftime('%Y-%m-%d %H:%M')}\n"
-            f"   📅 Created: {reminder['created_at'].strftime('%Y-%m-%d %H:%M')}\n\n"
+            f"<b>{i}. {reminder['message']}</b>\n"
+            f"   ⏰ <b>Scheduled:</b> {reminder['time'].strftime('%Y-%m-%d %H:%M')}\n\n"
         )
+        keyboard_buttons.append([
+            InlineKeyboardButton(text=f"❌ Cancel #{i}: {reminder['message'][:15]}", callback_data=f"remind_delete_{rid}")
+        ])
     
-    await message.answer(reminder_text, parse_mode="HTML")
+    kb = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    await message.answer(reminder_text, reply_markup=kb, parse_mode="HTML")

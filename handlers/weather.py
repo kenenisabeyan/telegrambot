@@ -155,6 +155,14 @@ async def cmd_weather(message: Message, state: FSMContext, db=None):
     if len(args) < 2:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🇬🇧 London", callback_data="quick_city_London"),
+                    InlineKeyboardButton(text="🇺🇸 New York", callback_data="quick_city_New York"),
+                ],
+                [
+                    InlineKeyboardButton(text="🇯🇵 Tokyo", callback_data="quick_city_Tokyo"),
+                    InlineKeyboardButton(text="🇦🇪 Dubai", callback_data="quick_city_Dubai"),
+                ],
                 [InlineKeyboardButton(text="📍 Send Location", callback_data="weather_location")],
                 [InlineKeyboardButton(text="📅 5-Day Forecast", callback_data="weather_forecast")],
                 [InlineKeyboardButton(text="❓ Help", callback_data="weather_help")]
@@ -334,3 +342,13 @@ async def weather_help(callback: CallbackQuery):
     )
     await callback.message.answer(help_text, parse_mode="HTML")
     await callback.answer()
+
+@router.callback_query(F.data.startswith("quick_city_"))
+async def callback_quick_city(callback: CallbackQuery, state: FSMContext, db=None):
+    """Handle instant weather for popular cities"""
+    if db:
+        await db.log_command(callback.from_user.id, "weather")
+    city = callback.data.replace("quick_city_", "")
+    await state.clear()
+    await callback.answer(f"Fetching weather for {city}...")
+    await get_and_send_weather(callback.message, city)

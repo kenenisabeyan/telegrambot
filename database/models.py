@@ -282,3 +282,31 @@ class Database:
                 DELETE FROM managed_bots
                 WHERE owner_id = $1 AND bot_id = $2
             """, owner_id, bot_id)
+
+    async def get_all_user_ids(self) -> list:
+        """Fetch all registered user IDs for broadcasts"""
+        async with self.pool.acquire() as conn:
+            records = await conn.fetch("SELECT user_id FROM users ORDER BY joined_at DESC")
+            return [r["user_id"] for r in records]
+
+    async def get_recent_users(self, limit: int = 10) -> list:
+        """Fetch recent users for admin inspection"""
+        async with self.pool.acquire() as conn:
+            records = await conn.fetch("""
+                SELECT user_id, username, first_name, last_name, joined_at, last_active
+                FROM users
+                ORDER BY last_active DESC NULLS LAST
+                LIMIT $1
+            """, limit)
+            return [dict(r) for r in records]
+
+    async def get_user_reminders(self, user_id: int) -> list:
+        """Fetch active reminders for a specific user"""
+        async with self.pool.acquire() as conn:
+            records = await conn.fetch("""
+                SELECT id, message, remind_time, created_at, status
+                FROM reminders
+                WHERE user_id = $1 AND status = 'active' AND remind_time > NOW()
+                ORDER BY remind_time ASC
+            """, user_id)
+            return [dict(r) for r in records]
