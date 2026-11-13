@@ -7,7 +7,7 @@
 [![FSM Storage](https://img.shields.io/badge/FSM-Redis%20%7C%20Memory-DC382D.svg?style=flat-square&logo=redis&logoColor=white)](https://redis.io/)
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 [![Linter](https://img.shields.io/badge/linter-ruff-orange.svg?style=flat-square)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-18%20passed-brightgreen.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-22%20passed-brightgreen.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 
 > **A high-performance, asynchronous Telegram bot platform built with aiogram v3, asyncpg, Redis, and PostgreSQL.**  
@@ -118,6 +118,7 @@ flowchart TD
   - 🖼️ **Profile Picture Avatar** (`setMyProfilePhoto`) via direct image upload
 - **📜 Live Command Directory Inspector**: Query and review all active commands currently registered on the managed bot via `getMyCommands`.
 - **🔔 Live Connection Ping**: Dispatch a live end-to-end verification ping from the managed bot directly to the owner to verify dispatch privileges.
+- **🌐 Webhook Reset & Conflict Resolver**: Clear external webhooks and flush pending update queues with one click to resolve `409 Conflict` errors and restore long polling.
 - **🔍 Automated Health & Delivery Diagnostics**: Inspect live bot health in one click:
   - Real-time API reachability
   - Delivery mode (`Webhook` with URL vs `Long Polling`)
@@ -145,6 +146,7 @@ flowchart TD
 ### 5. Smart Reminders Engine
 - **Natural Language Parsing**: Recognizes relative and shorthand time phrases (e.g., `in 15 minutes`, `2 hours`, `tomorrow at 9am`, `3d`).
 - **Interactive Reminders Directory**: Review active scheduled tasks via `/reminders` or `/myreminders` with instant cancellation buttons.
+- **🔁 Recurring Daily Scheduling**: Understands natural recurrence schedules (e.g., `every day at 9am Standup` or `daily at 8pm Review goals`).
 - **Interactive Inline Actions**: Delivered reminders feature interactive inline action buttons:
   - ✅ **Mark Done**: Dismisses the reminder and logs task completion.
   - ⏰ **Snooze**: Reschedules notifications for later follow-up (+5 min, +10 min).
@@ -172,6 +174,7 @@ flowchart TD
 ### 9. Enterprise Administration & Broadcast
 - **Role-Based Access Control**: Strict access verification via `ADMIN_IDS` configuration.
 - **Real-Time Analytics Dashboard**: Tracks total onboarded users, daily active users (DAU), command invocation frequency, and service loads.
+- **📈 Live Engine Telemetry**: Monitored runtime metrics: memory consumption (RSS), update throughput, average and p95 latencies, and uptime.
 - **Mass Broadcast Engine**: Real-time dispatcher iterating across all registered database users with delivery and failure metrics.
 - **Audit Logs Inspector**: View the last 20 runtime log entries with formatting and live refresh.
 - **System Environment Inspector**: Review active runtime configuration, modes, and database connection pools.
@@ -229,7 +232,8 @@ telegrambot/
 │
 ├── utils/
 │   ├── __init__.py
-│   └── keyboards.py         # Main reply keyboards & dynamic inline menus
+│   ├── keyboards.py         # Main reply keyboards & dynamic inline menus
+│   └── telemetry.py         # Real-time metrics, latency & memory observer
 │
 ├── tests/
 │   ├── test_bot.py          # System environment, module imports & config tests
