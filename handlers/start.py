@@ -36,28 +36,17 @@ async def cmd_start(message: Message, state: FSMContext, db=None):
             except Exception:
                 pass
         await db.log_command(message.from_user.id, "start")
+        lang = await db.get_user_language(message.from_user.id)
+    else:
+        lang = "en"
     
-    welcome_text = (
-        f"<b>👋 Welcome, {message.from_user.full_name}!</b>\n\n"
-        f"<b>🤖 Enterprise Telegram Bot</b>\n"
-        f"<i>Your all-in-one productivity assistant</i>\n\n"
-        f"<b>✨ Features:</b>\n"
-        f"• 📚 <b>FAQ System</b> - Instant answers\n"
-        f"• ⏰ <b>Smart Reminders</b> - Never miss tasks\n"
-        f"• 🤖 <b>AI Chat</b> - Powered by GPT\n"
-        f"• 🌤 <b>Live Weather</b> - Real-time updates\n"
-        f"• 📊 <b>Analytics</b> - Track your usage\n"
-        f"• 💬 <b>Feedback</b> - Help us improve\n\n"
-        f"<b>🚀 Quick Start:</b>\n"
-        f"• Click buttons below\n"
-        f"• Type /help for all commands\n"
-        f"• Visit our website for more info\n\n"
-        f"<i>Let's make your day productive! 💪</i>"
-    )
+    from utils.i18n import t
+    welcome_text = t("welcome", lang=lang, name=message.from_user.full_name)
     
     await message.answer(
         welcome_text,
-        reply_markup=get_main_keyboard(message.from_user.id)
+        reply_markup=get_main_keyboard(message.from_user.id),
+        parse_mode="HTML"
     )
 
 @router.message(Command("help"))
@@ -313,3 +302,40 @@ async def callback_set_tz(callback: CallbackQuery, db=None):
 async def callback_profile_referral(callback: CallbackQuery, db=None):
     await cmd_referral(callback.message, db=db)
     await callback.answer()
+
+@router.message(Command("language"))
+async def cmd_language(message: Message, db=None):
+    """Select preferred interface language"""
+    from utils.i18n import t
+    lang = await db.get_user_language(message.from_user.id) if db else "en"
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    buttons = [
+        [
+            InlineKeyboardButton(text=f"{'✅ ' if lang == 'en' else ''}🇺🇸 English", callback_data="set_lang_en"),
+            InlineKeyboardButton(text=f"{'✅ ' if lang == 'es' else ''}🇪🇸 Español", callback_data="set_lang_es")
+        ],
+        [
+            InlineKeyboardButton(text=f"{'✅ ' if lang == 'fr' else ''}🇫🇷 Français", callback_data="set_lang_fr"),
+            InlineKeyboardButton(text=f"{'✅ ' if lang == 'de' else ''}🇩🇪 Deutsch", callback_data="set_lang_de")
+        ]
+    ]
+    await message.answer(
+        t("lang_select", lang=lang),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        parse_mode="HTML"
+    )
+
+@router.callback_query(F.data.startswith("set_lang_"))
+async def callback_set_lang(callback: CallbackQuery, db=None):
+    """Set language preference callback"""
+    lang_code = callback.data.replace("set_lang_", "")
+    from utils.i18n import t
+    if db:
+        await db.set_user_language(callback.from_user.id, lang_code)
+        
+    await callback.answer(t("lang_changed", lang=lang_code), show_alert=True)
+    await callback.message.edit_text(
+        t("lang_changed", lang=lang_code) + "\n\n" + t("menu_title", lang=lang_code),
+        parse_mode="HTML"
+    )
