@@ -55,9 +55,10 @@ def get_bot_options_keyboard(bot_id: int):
             ],
             [
                 InlineKeyboardButton(text="🔍 Diagnostics & Status", callback_data=f"bot_diag_{bot_id}"),
-                InlineKeyboardButton(text="❌ Delete Bot", callback_data=f"bot_delete_{bot_id}")
+                InlineKeyboardButton(text="🌐 Reset Webhook", callback_data=f"bot_reset_webhook_{bot_id}")
             ],
             [
+                InlineKeyboardButton(text="❌ Delete Bot", callback_data=f"bot_delete_{bot_id}"),
                 InlineKeyboardButton(text="🔙 Back to List", callback_data="bot_list_back")
             ]
         ]

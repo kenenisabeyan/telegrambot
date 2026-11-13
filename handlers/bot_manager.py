@@ -370,6 +370,32 @@ async def callback_bot_ping(callback: CallbackQuery, db=None):
             parse_mode="HTML"
         )
 
+@router.callback_query(F.data.startswith("bot_reset_webhook_"))
+async def callback_reset_webhook(callback: CallbackQuery, db=None):
+    """Delete webhook and flush pending updates to restore polling mode"""
+    bot_id = int(callback.data.split("_")[3])
+    bot_data = await db_get_bot(callback.from_user.id, bot_id, db)
+    if not bot_data:
+        await callback.answer("Bot not found!", show_alert=True)
+        return
+        
+    await callback.answer("Resetting webhook...", show_alert=False)
+    
+    try:
+        await call_bot_api(bot_data['token'], "delete_webhook", drop_pending_updates=True)
+        await callback.message.answer(
+            f"✅ <b>Webhook Reset for @{bot_data['username']}!</b>\n\n"
+            f"• Webhook cleared successfully.\n"
+            f"• Pending update conflicts dropped.\n"
+            f"• Ready for Long Polling (local dev) with no 409 Conflict errors.",
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        await callback.message.answer(
+            f"❌ Failed to reset webhook: <code>{str(e)}</code>",
+            parse_mode="HTML"
+        )
+
 @router.callback_query(F.data == "bot_list_back")
 @router.callback_query(F.data == "bot_edit_back")
 async def callback_list_back(callback: CallbackQuery, db=None):
