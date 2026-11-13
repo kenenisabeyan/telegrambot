@@ -104,3 +104,4 @@ def t(key: str, lang: str = "en", **kwargs: Any) -> str:
         except Exception:
             return template
     return template
+
