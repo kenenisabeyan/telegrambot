@@ -72,7 +72,10 @@ def get_admin_keyboard():
                 InlineKeyboardButton(text="📊 Bot Stats", callback_data="admin_stats"),
                 InlineKeyboardButton(text="📈 Telemetry", callback_data="admin_telemetry")
             ],
-            [InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast")],
+            [
+                InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast"),
+                InlineKeyboardButton(text="💾 Export Data", callback_data="admin_export")
+            ],
             [InlineKeyboardButton(text="👥 Users", callback_data="admin_users")],
             [InlineKeyboardButton(text="📝 Logs", callback_data="admin_logs")],
             [InlineKeyboardButton(text="⚙️ Settings", callback_data="admin_settings")],

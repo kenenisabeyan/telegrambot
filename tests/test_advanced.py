@@ -191,3 +191,29 @@ def test_admin_keyboard_telemetry_button():
     kb = get_admin_keyboard()
     callbacks = [btn.callback_data for row in kb.inline_keyboard for btn in row]
     assert "admin_telemetry" in callbacks
+
+def test_i18n_translation_engine():
+    """Test multi-language translation and formatting"""
+    from utils.i18n import t
+    en_msg = t("welcome", lang="en", name="Alice")
+    assert "Alice" in en_msg
+    assert "Enterprise Telegram Bot" in en_msg
+    
+    es_msg = t("welcome", lang="es", name="Carlos")
+    assert "Carlos" in es_msg
+    assert "Empresarial" in es_msg
+    
+    fr_msg = t("welcome", lang="fr", name="Jean")
+    assert "Jean" in fr_msg
+    assert "Entreprise" in fr_msg
+    
+    de_msg = t("welcome", lang="de", name="Hans")
+    assert "Hans" in de_msg
+    assert "Willkommen" in de_msg
+
+def test_admin_keyboard_export_button():
+    """Test admin keyboard contains export button"""
+    from utils.keyboards import get_admin_keyboard
+    kb = get_admin_keyboard()
+    callbacks = [btn.callback_data for row in kb.inline_keyboard for btn in row]
+    assert "admin_export" in callbacks

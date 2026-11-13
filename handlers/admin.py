@@ -315,6 +315,51 @@ async def admin_settings(callback: CallbackQuery, db=None):
     await callback.message.edit_text(settings_text, reply_markup=back_kb, parse_mode="HTML")
     await callback.answer()
 
+@router.callback_query(F.data == "admin_export")
+async def callback_admin_export(callback: CallbackQuery, db=None):
+    """Export system state and metrics snapshot as a downloadable JSON file"""
+    if not is_admin(callback.from_user.id):
+        await callback.answer("Access denied!", show_alert=True)
+        return
+        
+    await callback.answer("Preparing export package...", show_alert=False)
+    
+    import json
+    from aiogram.types import BufferedInputFile
+    from utils.telemetry import telemetry
+    
+    stats = await db.get_admin_stats() if db else {"users": 1, "commands": 0}
+    recent_users = await db.get_recent_users(limit=25) if db else []
+    for u in recent_users:
+        for k, v in u.items():
+            if isinstance(v, datetime):
+                u[k] = v.isoformat()
+                
+    export_payload = {
+        "metadata": {
+            "exported_at": datetime.now().isoformat(),
+            "exported_by": callback.from_user.id,
+            "system_version": "Enterprise 2.0"
+        },
+        "statistics": stats,
+        "telemetry": telemetry.get_metrics_snapshot(),
+        "recent_users": recent_users
+    }
+    
+    json_bytes = json.dumps(export_payload, indent=2, ensure_ascii=False).encode("utf-8")
+    filename = f"telemetry_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    file_doc = BufferedInputFile(json_bytes, filename=filename)
+    await callback.message.answer_document(
+        file_doc,
+        caption=(
+            f"<b>💾 Audit Data Export Generated</b>\n"
+            f"• <b>Records Captured:</b> {len(recent_users)} users\n"
+            f"• <b>Timestamp:</b> <code>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</code>"
+        ),
+        parse_mode="HTML"
+    )
+
 @router.callback_query(F.data == "admin_panel_back")
 async def admin_panel_back(callback: CallbackQuery):
     """Return to admin panel home"""
