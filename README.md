@@ -7,7 +7,7 @@
 [![FSM Storage](https://img.shields.io/badge/FSM-Redis%20%7C%20Memory-DC382D.svg?style=flat-square&logo=redis&logoColor=white)](https://redis.io/)
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 [![Linter](https://img.shields.io/badge/linter-ruff-orange.svg?style=flat-square)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-22%20passed-brightgreen.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/tests-24%20passed-brightgreen.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 
 > **A high-performance, asynchronous Telegram bot platform built with aiogram v3, asyncpg, Redis, and PostgreSQL.**  
@@ -197,6 +197,13 @@ flowchart TD
 - **Configurable Timezones**: Select from world timezones (`UTC`, `EST`, `CET`, `EAT`, `IST`, `PST`) so reminder triggers always match local schedules.
 - **Deep-Linked Referral System (`/referral`)**: Unique shareable invite links (`https://t.me/<bot>?start=ref_<id>`) with automated referral crediting.
 
+### 13. Multi-Language Localization Engine (i18n)
+- **Multi-Lingual Support**: Seamless interface translation across **🇺🇸 English**, **🇪🇸 Español**, **🇫🇷 Français**, and **🇩🇪 Deutsch**.
+- **Interactive Switching (`/language`)**: Changes preferred interface locale instantly and persists the preference in PostgreSQL.
+
+### 14. Administrative Audit & JSON Exporter
+- **Automated Data Export**: Generate and download audit snapshots (`/admin` -> `💾 Export Data`) containing live statistics, telemetry, and recent users as a structured JSON attachment.
+
 ---
 
 ## 📁 Project Structure
@@ -232,6 +239,7 @@ telegrambot/
 │
 ├── utils/
 │   ├── __init__.py
+│   ├── i18n.py              # Internationalization & multi-language engine
 │   ├── keyboards.py         # Main reply keyboards & dynamic inline menus
 │   └── telemetry.py         # Real-time metrics, latency & memory observer
 │
@@ -264,6 +272,7 @@ telegrambot/
 | `/weather` | `Weather` | Get current weather or 5-day forecast for any city |
 | `/stats` | `Stats` | View personal usage metrics and commands executed |
 | `/profile` | — | Display personal account details and change timezone |
+| `/language` | — | Switch interface locale (English, Español, Français, Deutsch) |
 | `/referral` | — | View referral statistics and share invitation link |
 | `/feedback` | `Feedback` | Submit comments or issue reports directly to administrators |
 | `/cancel` | `Cancel` | Cancel any active FSM dialogue or multi-step wizard |
