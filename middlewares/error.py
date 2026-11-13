@@ -3,6 +3,7 @@ import logging
 from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject, Message, CallbackQuery
+from utils.telemetry import telemetry
 
 logger = logging.getLogger("bot.error_boundary")
 
@@ -32,6 +33,7 @@ class ErrorHandlingMiddleware(BaseMiddleware):
         try:
             return await handler(event, data)
         except Exception as e:
+            telemetry.record_error()
             raw_err = str(e)
             safe_err = sanitize_sensitive_data(raw_err)
             user = data.get("event_from_user")

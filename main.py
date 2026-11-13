@@ -28,6 +28,7 @@ from middlewares import (
     LoggingMiddleware,
     ErrorHandlingMiddleware,
 )
+from utils.telemetry import telemetry
 
 # Configure logging
 logging.basicConfig(
@@ -198,10 +199,12 @@ async def start_webhook_server(bot: Bot, dp: Dispatcher, db=None):
     async def health_endpoint(request: web.Request):
         """Health check endpoint for Docker/Kubernetes container orchestration."""
         is_healthy = await db.is_healthy() if db else True
+        snapshot = telemetry.get_metrics_snapshot()
         status_payload = {
             "status": "healthy" if is_healthy else "degraded",
             "bot": "online",
             "database": "connected" if (db and is_healthy) else ("mock" if not db else "error"),
+            "telemetry": snapshot,
             "timestamp": datetime.now().isoformat()
         }
         return web.json_response(status_payload, status=200 if is_healthy else 503)
