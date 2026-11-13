@@ -120,3 +120,4 @@ async def inline_query_handler(query: InlineQuery, db=None):
                 )
 
     await query.answer(results, cache_time=30, is_personal=True)
+
