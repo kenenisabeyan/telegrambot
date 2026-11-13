@@ -114,3 +114,4 @@ class TelemetryCollector:
 
 # Global singleton instance
 telemetry = TelemetryCollector()
+
