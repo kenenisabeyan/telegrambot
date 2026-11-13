@@ -75,6 +75,7 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="deletebot", description="❌ Delete a bot from the manager"),
         BotCommand(command="cancel", description="❌ Cancel current operation"),
         BotCommand(command="profile", description="👤 Personal profile & timezone"),
+        BotCommand(command="language", description="🌐 Change interface language"),
         BotCommand(command="referral", description="🎁 Invite friends & referral program"),
         BotCommand(command="stats", description="📊 Bot statistics"),
         BotCommand(command="feedback", description="💬 Send feedback"),
