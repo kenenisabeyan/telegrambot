@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from contextlib import asynccontextmanager
 import asyncpg
 
 logger = logging.getLogger(__name__)
@@ -50,10 +51,12 @@ class Database:
                     is_premium BOOLEAN DEFAULT FALSE,
                     is_admin BOOLEAN DEFAULT FALSE,
                     timezone VARCHAR(50) DEFAULT 'UTC',
-                    referred_by BIGINT
+                    referred_by BIGINT,
+                    language VARCHAR(10) DEFAULT 'en'
                 );
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'UTC';
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by BIGINT;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT 'en';
                 CREATE INDEX IF NOT EXISTS idx_users_last_active ON users(last_active);
                 CREATE INDEX IF NOT EXISTS idx_users_referred_by ON users(referred_by);
             """)
@@ -343,3 +346,21 @@ class Database:
         async with self.pool.acquire() as conn:
             count = await conn.fetchval("SELECT COUNT(*) FROM users WHERE referred_by = $1", user_id)
             return {"total_referrals": count or 0}
+
+    async def set_user_language(self, user_id: int, language: str):
+        """Set user interface language preference"""
+        async with self.pool.acquire() as conn:
+            await conn.execute("UPDATE users SET language = $2 WHERE user_id = $1", user_id, language)
+
+    async def get_user_language(self, user_id: int) -> str:
+        """Get user interface language preference (default 'en')"""
+        async with self.pool.acquire() as conn:
+            lang = await conn.fetchval("SELECT language FROM users WHERE user_id = $1", user_id)
+            return lang or "en"
+
+    @asynccontextmanager
+    async def transaction(self):
+        """Asynchronous context manager for atomic database operations"""
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                yield conn
